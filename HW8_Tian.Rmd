@@ -1,0 +1,402 @@
+---
+title: "Stats 202 HW7"
+author: "Jenny Tian"
+date: "December 2, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r echo=FALSE, results = 'hide', message = FALSE}
+#install.packages("tinytex")
+#tinytex::install_tinytex()
+```
+
+
+```{r, warning = F, message = F, echo = F}
+
+library("e1071")
+library("tree")
+library("ISLR")
+library("MASS")
+library("bookdown")
+library("class")
+library("dplyr")
+library("tidyr")
+library("ggplot2")
+library("boot")
+library("leaps")
+library("glmnet")
+library("pls")
+options("scipen"=100, "digits"=6)
+
+```
+
+
+
+
+## Problem 1: 8.4 Ex4
+
+
+```{r, out.width = "400px", echo = F,out.extra='angle=270'}
+knitr::include_graphics("C:/Users/zhenying.tian/Downloads/Tuition Program/Data Mining with R/HW/HW7/Q1.JPG") 
+
+```
+
+
+## Problem 2: 8.4 Ex8 Regression Tree: Predict Sales on Carseats
+###(a):
+```{r, message=FALSE, warning = F}
+RNGkind(sample.kind = "Rounding") # because set seed is different in R 3.6.0
+set.seed(1)
+train <- sample(1: nrow(Carseats), nrow(Carseats) / 2)
+```
+
+### (b) Full Regression Tree
+The regression tree uses only seven variables ("ShelveLoc", "Price"", "Age", "US", "Income", "CompPrice", "Advertising") as the decision criteria and has 18 leaves. ShelveLoc and Price are the most important variables. The test MSE is 4.167.
+
+```{r}
+data(Carseats)
+#fit and plot tree on training dataset
+tree1 <- tree(Sales ~ ., data = Carseats, subset = train)
+summary(tree1)# deviance = sum of squared error 
+plot(tree1)
+text(tree1, pretty = 0)
+
+#predict on test dataset to get test MSE
+yhat <- predict(tree1, newdata = Carseats[-train, ])
+car.test <- Carseats[-train, 'Sales']
+# plot(yhat, car.test)
+# abline(0, 1)
+mean((yhat - car.test) ^ 2)
+```
+### (c) CV to prune tree
+Using CV, the optimal level of tree complexity is 8 terminal nodes, using only ShelveLoc, Price and Age as the predictors. The test MSE of this optimal pruned tree is now 5.09085, which is not an improvement over the full regression tree. 
+
+```{r, warning=FALSE,message=FALSE}
+# Use CV to find the best subtree node
+RNGkind(sample.kind = "Rounding") # because set seed is different in R 3.6.0
+set.seed(1)
+cv1 <- cv.tree(tree1)
+plot(cv1$size, cv1$dev, type = 'b')
+best.node <- cv1$size[which.min(cv1$dev)]
+best.node
+
+# fit and plot pruned tree
+prune1 <- prune.tree(tree1, best = best.node)
+plot(prune1)
+text(prune1, pretty = 0)
+
+#predict on test dataset to get test MSE
+yhat2 <- predict(prune1, newdata = Carseats[-train, ])
+car.test <- Carseats[-train, 'Sales']
+mean((yhat2 - car.test) ^ 2)
+```
+
+
+### (d) Bagging
+Using bagging, the test MSE is now 2.634, much smaller than either the full regression tree or the optimally pruned tree. 
+```{r , warning = F, message = F}
+#install.packages("randomForest")
+library(randomForest)
+RNGkind(sample.kind = "Rounding") # because set seed is different in R 3.6.0
+set.seed(1)
+bag1 <- randomForest(Sales ~ ., data = Carseats, subset = train, mtry = ncol(Carseats) - 1, importance = TRUE)
+bag1
+yhat3 <- predict(bag1, newdata = Carseats[-train, ])
+mean((yhat3 - car.test) ^ 2)
+```
+By both prediction accuracy and node purity, "Price", "ShelveLoc" and "Age" are the most important predictors in bagging.  
+
+```{r}
+# importance(bag1)
+varImpPlot(bag1)
+```
+
+### (e) Random Forest
+Using random forest with number of variables considered at each split m = 3, number of bootstrapped trees B = 500, the test MSE is now 3.248, bigger than that of bagging but still smaller than either the full regression tree or the optimally pruned tree. 
+```{r, warning = F}
+#install.packages("randomForest")
+library(randomForest)
+RNGkind(sample.kind = "Rounding") # because set seed is different in R 3.6.0
+set.seed(1)
+rf1 <- randomForest(Sales ~ ., data = Carseats, subset = train, mtry = 3, importance = TRUE)
+rf1
+yhat4 <- predict(rf1, newdata = Carseats[-train, ])
+mean((yhat4 - car.test) ^ 2)
+```
+By both prediction accuracy and node purity, "Price", "ShelveLoc" and "Age" are still the most important predictors in random forest.  
+
+```{r}
+varImpPlot(rf1)
+```
+
+In this dataset, as m increases from 1 to 7, the test error rate decreases from 5.204 to 2.644, and then the test error increases a bit at m=8, reaches its minimum at m =9 and increases a bit again at m=p=10. Thus, if we take m = 9, the random forest method yields a smaller test MSE 2.600 than the bagging test MSE 2.634. 
+
+```{r, message=F, warning = F}
+test <- rep(NA, ncol(Carseats)-1)
+for (i in 1:(ncol(Carseats)-1)) {
+RNGkind(sample.kind = "Rounding") # because set seed is different in R 3.6.0
+set.seed(1)
+rf1 <- randomForest(Sales ~ ., data = Carseats, subset = train, mtry = i, importance = TRUE)
+yhat4 <- predict(rf1, newdata = Carseats[-train, ])
+test[i] <- mean((yhat4 - car.test) ^ 2)
+}
+m <- c(1:(ncol(Carseats)-1))
+rbind(m,test)
+
+```
+
+## Problem 3: 8.4 Ex10 Regression Tree: Predict Salary on Hitters
+
+###(a) Clean data 
+
+```{r}
+Hitters <- Hitters[!is.na(Hitters$Salary),]
+Hitters$Salary <- log(Hitters$Salary)
+```
+### (b) Split data into training and test
+```{r}
+
+train <- Hitters[1:200,]
+test <- Hitters[-c(1:200),]
+```
+###(c) Boosting: Training MSE by Shrinkage 
+
+```{r}
+#install.packages("gbm")
+library(gbm)
+set.seed(1)
+shrinkage <- seq(from = 0.001, to = 0.01, by = 0.001)
+train.mse<- rep(NA, 10)
+test.mse<- rep(NA, 10)
+
+for (i in 1:10){
+boost.hitters<- gbm(Salary ~ ., data = train, distribution = 'gaussian', n.trees = 1000, interaction.depth = 1,shrinkage = shrinkage[i],verbose = FALSE)
+yhat.train <- predict(boost.hitters, newdata = train, n.trees = 1000)
+train.mse[i] <- mean((yhat.train- train$Salary) ^ 2)
+yhat.test<- predict(boost.hitters, newdata = test, n.trees = 1000)
+test.mse[i] <- mean((yhat.test - test$Salary) ^ 2)
+}
+plot(x = shrinkage, y = train.mse, ylab = "Training MSE", "b",  main = "Boosting Training MSE by Shrinkage Parameter")
+ticks<-seq(from = 0.001, to = 0.01, by = 0.001)
+axis(1,at=ticks,labels=ticks)
+```
+
+###(d) Boosting: Test MSE by Shrinkage 
+
+The lowest boosting test MSE is 0.282, when shrinkage parameter is 0.01. 
+```{r}
+min(test.mse)
+plot(x = shrinkage, y = test.mse, ylab = "Test MSE", "b",  main = "Boosting Test MSE by Shrinkage Parameter")
+ticks<-seq(from = 0.001, to = 0.01, by = 0.001)
+axis(1,at=ticks,labels=ticks)
+```
+
+###(e): fit with linear regression and lasso
+
+The test MSE from linear regression is 0.492 and from lasso is 0.471. Lasso improves linear regression slightly by dropping out five irrelevant predictors, but overall it is still a much poorer fit than boosted decision tree. 
+
+```{r}
+# LS:
+set.seed(1)
+slr.full<-lm(Salary~.,data=train)
+summary(slr.full)
+slr.predict<-predict(slr.full,test)
+mean((slr.predict-test$Salary)^2)
+
+
+```
+
+```{r}
+# Lasso: 
+library(glmnet)
+set.seed(1)
+hitterstrain.mat<-model.matrix(Salary~.,data=train)
+hitterstest.mat<-model.matrix(Salary~.,data=test)
+
+#Finding lambda that gives minimum MSE by cross validation on training set
+cv.lasso<-cv.glmnet(hitterstrain.mat,train$Salary,alpha=1)
+
+# #Visualizing MSE vs Log(lambda)
+# plot(cv.lasso)
+
+# Fit the regression with the best lambda (from lowest CV error)
+bestlam <- cv.lasso$lambda.min
+lasso.hitters<-glmnet(hitterstrain.mat ,train$Salary,alpha=1,lambda=bestlam)
+coef(lasso.hitters)
+
+# Get the test error on the validation set 
+yhat.lasso<-predict(lasso.hitters,s=bestlam,newx=hitterstest.mat)
+mean((yhat.lasso-test$Salary)^2)
+
+```
+
+###(f) variable importance 
+
+The most important predictors in the boosted model (where shrinkage = 0.01) are CAtBat, CHits, CRBI, CWalks and CRuns.
+```{r}
+set.seed(1)
+summary(gbm(Salary ~ ., data = train, distribution = 'gaussian', n.trees = 1000, interaction.depth = 1,shrinkage = 0.01,verbose = FALSE))
+```
+
+###(g) Bagging 
+
+The bagging test MSE is 0.232, lower than the lowest boosted test MSE and the test MSE from linear regression and Lasso.  
+```{r}
+library(randomForest)
+set.seed(1)
+bag.hitters <- randomForest(Salary ~ ., data = train,  mtry = ncol(train) - 1, importance = TRUE)
+yhat.bag <- predict(bag.hitters, newdata = test)
+mean((yhat.bag - test$Salary) ^ 2)
+```
+
+## Problem 4: 9.7 Ex4
+
+Generate a simulated two-class data set with 100 observations and two features in which there is a visible but non-linear separation between the two classes. Show that in this setting, a support vector machine with a polynomial kernel (with degree greater than 1) or a radial kernel will outperform a support vector classifier on the training data. Which technique performs best on the test data? Make plots and report training and test error rates in order to back up your assertions.
+
+###Generate data and plot:
+```{r, warning = F}
+RNGkind(sample.kind = "Rounding") # because set seed is different in R 3.6.0
+set.seed(1)
+transl <- 3
+X <- matrix(rnorm(100 * 2), ncol = 2)
+X[1:30, ] <- X[1:30, ] + transl
+X[31:60, ] <- X[31:60, ] - transl
+y <- c(rep(0, 60), rep(1, 40))
+dat <- data.frame(x = X, y = as.factor(y))
+plot(X, col = y + 1)
+```
+
+###Split to training and test set:
+```{r, warning = F}
+train <- sample(100, 80)
+dat.train <- dat[train, ]
+dat.test <- dat[-train, ]
+```
+
+### Fit with a support vector classifier:
+
+The training error rate: 30/80 = 37.5%. The support vector classifier marks all training points as class *zero*, which means this model is useless on this training set.
+
+```{r, warning = F, message = F}
+library(e1071)
+svm.lin <- svm(y ~ ., data = dat.train, kernel = 'linear', scale = FALSE)
+plot(svm.lin, data = dat.train)
+summary(svm.lin)
+table(predict = svm.lin$fitted, truth = dat.train$y)
+```
+
+### Fit with polynomial kernel:
+
+The training error rate is also 30/80 = 37.5%. Polynomial kernal SVM does not outperform SVC on the training dataset. 
+```{r}
+svm.poly <- svm(y ~ ., data = dat.train, kernel = 'polynomial', scale = FALSE)
+plot(svm.poly, data = dat.train)
+table(predict = svm.poly$fitted, truth = dat.train$y)
+```
+
+
+###Fit with radial kernel:
+
+The training error rate is only 1/80 = 1.25%, which much more less than the other 2 kernels. Radial kernal SVM outperforms SVC on the training dataset. 
+
+```{r}
+svm.rad <- svm(y ~ ., data = dat.train, kernel = 'radial', scale = FALSE)
+plot(svm.rad, data = dat.train)
+table(predict = svm.rad$fitted, truth = dat.train$y)
+```
+
+
+### Compare the test errors of the 3 kernels:
+
+The test error rate for linear, polynomial (with default degree: 3) and radial kernel are: 50%, 50% and 0%. This shows that radial kernal performs the best on the test dataset. 
+
+```{r}
+lin.pred <- predict(svm.lin, dat.test)
+table(predict = lin.pred, truth = dat.test$y)
+poly.pred <- predict(svm.poly, dat.test)
+table(predict = poly.pred, truth = dat.test$y)
+rad.pred <- predict(svm.rad, dat.test)
+table(predict = rad.pred, truth = dat.test$y)
+```
+
+
+
+## Problem 5: 9.7 Ex7 Predict whether a given car gets high or low gas mileage based on the Auto data set.
+
+### (a) Create a binary variable 
+
+```{r, warning = F, message = F}
+library(ISLR)
+mileage.median <- median(Auto$mpg)
+Auto$mb <- ifelse(Auto$mpg > mileage.median, 1, 0)
+```
+
+### (b) Fit a support vector classifier to the data with various values of cost
+cost = 1 has the lowest 10-fold CV error rate of 0.091.
+
+```{r, warning = F, message = F}
+cost.grid <- c(0.001, 0.1, 1, 100)
+set.seed(1)
+tune.res <- tune(svm, mb ~ . - mpg, data = Auto, kernel = 'linear', ranges = list(cost = cost.grid))
+summary(tune.res)
+```
+
+
+### (c)SVMs with radial and polynomial basis kernels
+
+*radial* kernel: cost = 1 and gamma = 0.5 has the lowest 10-fold CV error rate of 0.049. 
+```{r}
+cost.grid <- c(0.01, 0.1, 1, 10, 100)
+gamma.grid <- c(0.5, 1, 2, 3, 4)
+tune.radial <- tune(svm, mb ~ ., data = Auto, kernel = 'radial', ranges = list(cost = cost.grid, gamma = gamma.grid))
+summary(tune.radial)
+```
+
+*polynomial* kernel: cost = 100 and degree = 1 has the lowest 10-fold CV error rate of 0.075. 
+```{r}
+deg.grid <- c(1, 2, 3, 4)
+tune.degree <- tune(svm, mb ~ ., data = Auto, kernel = 'polynomial', ranges = list(cost = cost.grid, degree = deg.grid))
+summary(tune.degree)
+```
+
+
+## Problem 6: Predict topic of article
+
+
+The SVM with the stringdot kernel yields smaller CV errors than SVM with gappy kernel for word lengths 2-7, so the optimal kernal in this case is stringdot. The lowest CV error of 0.025 occurs for SVM with stringdot kernel when word length anywhere between 3 and 7. 
+```{r, warning = F, message = F}
+#install.packages('kernlab')
+library(kernlab)
+data(reuters)
+y <- rlabels
+x <- reuters
+```
+```{r}
+length <- c(2:7)
+terror.sk <- rep(NA, 6)
+terror.gp <- rep(NA, 6)
+
+for (i in length){
+                #spectrum kernal 
+                sk <- stringdot(type="spectrum", length=i, normalized=TRUE)
+                svp.sk <-  ksvm(x,y, kernal = sk, scale = c(), cross=5)
+                set.seed(100)
+                terror.sk[i-1] <- cross(svp.sk)
+                
+                # gappy kernel 
+                ker <-  read.csv(paste0("C:/Users/zhenying.tian/Downloads/Tuition Program/Data Mining with R/HW/HW7/len", i, "lam0.1.csv"))
+                ker <- as.kernelMatrix(as.matrix(ker))
+                svp.gappy <-  ksvm(x=ker[,-1],y=rlabels,cross=5)
+                set.seed(100)
+                terror.gp[i-1] <-cross(svp.gappy)
+                }
+rbind(length, terror.sk, terror.gp)
+df <- data.frame(x=rep(length,2), y=c(terror.sk, terror.gp), class=c(rep("CV Error of stringdot kernel SVM", 6), rep( "CV Error of gappy kernel SVM", 6)))
+library(ggplot2)
+ggplot(df, aes(x=x, y=y, color=class)) + geom_point()+ labs(x = "Word Length", y = "CV Error")
+```
+
+

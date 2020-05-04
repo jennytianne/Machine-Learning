@@ -1,0 +1,233 @@
+---
+title: "STATS202 - HW1"
+author: "Jenny Tian"
+date: "September 30, 2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r echo=FALSE, results = 'hide', message = FALSE}
+#install.packages("tinytex")
+#tinytex::install_tinytex()
+```
+
+
+Discussed homework with Dominic Waltz, John Massad and Yin Gao.
+
+
+## Conceptual Exercises 
+### Exercise 1
+(a) n large, p small: Flexible method is better. A flexible method takes full advantage of the large sample size and lowers the bias. Since the sample size is large and the number of predictors is small, the flexibility of the method wouldn't increase the variance of $\tilde{f}$ too much. So the overall a flexible method results in a low expected test MSE.  
+(b) n small, p large: Flexible method is worse. When the sample size is small, a flexible method tends to overfit the training set and performs poorly on the test set. Futhermore, a small sample size and large number of predictors tends to high variance $\tilde{f}$, so the tradeoff of a lower bias from a flexible method does not offset the higher variance. 
+(c) highly nonlinear f: Flexible method is better. A flexible method is needed to fit all the curvatures of a nonlinear relationship, whereas an inflexible method would result in a huge bias. 
+(d) large variance of error term: Flexible method is worse, because a more flexible method would fit more to noise of the error terms and results in higher variance than the benefit of a lowered bias could offset. More noise in the data also means a flexible method has a higher risk of overfitting the training data. 
+
+ 
+
+### Exercise 2 
+(a) This is a regression problem where we're most interested in inference. n = 500 (top 500 firms in the US), p = 3 (predictors: profit, number of employees, industry). This is a regression problem because the output variable, CEO salary, is a quantitative variable. We're most interested in inference because we're interested in understanding the relationships between the predictors and output, which predictors affect CEO salary and how. 
+
+(b) This is a classification problem where we're most interested in prediction. n = 20 (20 similar products that were previously launched), p = 13 (predictors: price charged, marketing budget, competition price, and ten other predictors). This is a classification problem because the output variable, whether the product is a success or failure, is a categorical(binary) variable. We're most interested in prediction because we'd like to predict the success of a new product given its values of these predictors. We care more about the prediction accuracy than about how each predictor affects the predicted output. 
+
+(c) This is a regression problem where we're most interested in prediction. n = 52 (52 weeks of 2012 weekly data), p = 3 (predictors: % change in US, British and German market). This is a regression problem because the output variable, % change in the USD/Euro exchange rate, is a quantitative variable. We're most interested in prediction because we're interested in predicting the outcome variable given its values of predictors, treating as a black box the exact form of the relationships between the predictors and the outcome. 
+
+
+### Exercise 4 
+
+(a) Classification: 
+* Example 1
+    + Response: whether an email is a spam or not 
+    + Predictors: frequencies of 100 pre-selected most commonly occurring words
+    + Goal: prediction, because we're mostly interested in accurately predicting whether an email is spam and should be placed in the junk folder. The exact relationships between the frequencies of each word and the email's spam status is not important. 
+
+* Example 2
+    + Response: education Level (below high school, high school, some college, college, graduate degree)
+    + Predictors: mean annual family income, number of siblings, age, gender, race, year of birth, father's educational level, mother's educational level
+    + Goal: Inference, because we'd like to understand what factors affect one's education level, if the relationship between each predictor and the reponse is linear or non-linear, and what are the interventions we can do to improve one's educational level. 
+
+* Example 3
+    + Response: whether the user will like a song or not
+    + Predictors: the user like and don't like
+    + Goal: prediction, because we're mostly interested in accurately predicting songs the user will like, given his/her past preferences. We don't need to know the exact relationships of each predictor and the outcome. 
+
+
+(b) Regression: 
+* Example 1
+    + Response: SAT test score
+    + Predictors: time spent studying per week, GPA, whether tutorings services are used, gender, race
+    + Goal: Inference, because we'd like to know what factors influence a student's SAT test score, for example, how much would spending an extra hour per week studying for the exam will improve a student's SAT test score. 
+
+* Example 2
+    + Response: suicide rate in the USA
+    + Predictors: age cohort, gender, race, number of depressive episodes, number of depressive episodes of parents, state, annual income, educational level
+    + Goal: Inference, because we'd like to understand what factors affect suicide rate and which populations are more at stake so we can provide better interventions to lower suicide rate. The goal is not to predict a future suicide rate. 
+    
+* Example 3
+    + Response: daily air quality index in LA
+    + Predictors: air quality indices of past 7 days, temperature, day of the week, month, if it rains. 
+    + Goal: Prediction, because we're interested in accurately predicting the air quality for the next day and are less concerned with how exactly these predictors affect the index. 
+
+(c) Clustering: 
+* Example 1: categorizing Google news by topics. For example, grouping together news related to Amazon.com and news related to the Amazon fire. 
+
+* Example 2: group people on social networks so they can easily befriend people they might know. 
+
+* Example 3: group users on Youtube based on their search history, watched and liked videos other characteristics to help marketers target them with more relevant products that they would potentially like/buy. 
+
+### Exercise 5 
+Advantages of a flexible approach:  
+
+* Low bias of the estimate for f  
+
+* Better fit if is non-linear  
+
+
+Disadvantages of a flexible approach:  
+
+* High variance of the estimate for f  
+
+* Overfitting the training set (following the noise too closely)  
+
+* Requires a greater number of parameters for parametric models; requires more data for nonparametric models  
+
+* Worse interpretability  
+
+
+A flexible method is better when  
+
+* the sample size is large  
+
+* the true f is highly non-linear  
+
+* the variance of the error term is small  
+
+* we're interested in prediction and interpretability is not a concern  
+
+
+
+An inflexible method is better when  
+
+* the sample size is small  
+
+* the true f is highly linear  
+
+* the variance of the error term is large  
+
+*       we're interested in inference/interpreting the relationships  
+
+
+
+### Exercise 8 
+#### (a) Reading Data 
+```{r import}
+rm(list=ls())
+path <- "C:\\Users\\zhenying.tian\\Downloads\\Tuition Program\\Data Mining with R\\HW\\HW1"
+college <- read.csv(paste0(path, "\\College.csv"))
+
+```
+
+#### (b) Making the first column (university names) the row names
+```{r fix}
+rownames(college) <- college[,1]
+#fix(college)
+college <- college[,-1]
+#fix(college)
+head(college)
+```
+
+#### (c) Data Exploration
+##### (i) numerical summary of the variables: 
+There are 777 universities (565 private and 212 public) in this data with 18 variables. There are no missing values in this dataset. Only "Private" is a categorical varaible; the other 17 variables are numerical. 
+On average, each university receives 3,002 applications, accepts 2,019 students, and has an enrollment of 780. There's also great variability in the characteristics of these universities. For example, out-of-state tuition ranges from \$2,340 to \$21,700. 
+There also seems to be some potential data errors, such as the graduation rate of 118%. 
+```{r}
+summary(college)
+dim(college)
+```
+
+##### (ii) scatterplot matrix of the first ten columns
+Some variables have strong positve correlations, such as number of new students from top 10% and top 25% of high school class. The number of accepted students is also strongly positively correlated with the number of enrolled students and the number of applications. Enrollment rate is strongly correlated with the number of full time students.  
+Some other variables, such as room and board costs, out-of-state tuition and the number of part-time students, are very weakly correlated with any other variables in the data. 
+```{r}
+pairs(college[,1:10])
+```
+
+
+
+```{r echo = F}
+#install.packages("gpairs")
+#library(gpairs)
+#gpairs(college[,1:10])
+```
+
+##### (iii) boxplots of Outstate vs. Private
+Private universities have a much higher median out-of-state tuition than public universities. The first quartile of private universities is higher than the third quartile of public universities. 
+Private universities also have a much wider range and interquartile range than public universities. However, public universities have a few possible outliers of high out-of-state tuition.
+```{r}
+plot(Outstate~Private, data = college, ylab  = "Out-of-state Tuition", xlab = "Private", 
+     main = "Boxplots of Out-of-state Tuition for Private and Public Universities")
+```
+
+
+##### (iv) summarize elite universities (where the proportion of students from top 10% of their high school classes exceeds 50%)
+There are 78 elite colleges and 699 non-elite colleges. Elite colleges have a much higer median, Q1, Q3 and interquartile range but smaller range of out-of-state tuition than non-elite colleges. Elite colleges also have a left-skewed distribution of out-of-state tuitions, meaning that the tuitions of elite colleges with lower tuition are more dispersed than the the elite colleges with higher tuitions. Non-elite colleges have a slightly right-skewed distribution of out-of-state tuitions with some outliers at the top. 
+```{r}
+Elite = rep("No", nrow(college))
+Elite[college$Top10perc>50] = "Yes"
+Elite = as.factor(Elite)
+college = data.frame(college, Elite)
+summary(college$Elite)
+# plot(college$Elite, college$Outstate)
+plot(Outstate~Elite, data = college, xlab = "Elite College", ylab = "Out-of-state Tuition", 
+     main = "Boxplots of Out-of-state Tuition for Elite and Non-Elite Universities")
+```
+
+##### (v) Histograms of quantitative variables, with differing numbers of bins 
+The number of applications and the number of accepted students are both right-skewed with some outliers on the far right.  
+The distribution of out-of-state tuition is more symmetric albeit slightly right-skewed, with a few outliers on the right. Most colleges have tuition between \$5000 and \$15000. 
+The distribution of percent of alumni who donate is slightly right-skewed, and most colleges have between 10% and 40% of their alumni that donate. 
+```{r}
+par(mfrow = c(2,2))
+hist(college$Apps, breaks = 200)
+hist(college$Accept, breaks = 100)
+hist(college$Outstate, breaks = 50)
+hist(college$perc.alumni, breaks = 30)
+
+```
+
+#####(vi) Other data exploration: 
+1. Compare the proportions of elite universities by public and private schools:   
+11.5% of the private colleges in the data are elite (i.e. more than 50% of students come from top 10% in their high school classes). This proportion is almost twice as high as the proportion of elite colleges among public colleges. 
+```{r, message = F, results = 'hide', warning = F}
+library(tidyverse)
+
+```
+
+```{r}
+summarize(group_by(college, Private), college.count = n() , elite.count = sum(Elite=="Yes"), 
+          elite.proportion = sum(Elite == "Yes")/n())
+```
+2. Compare acceptance rates of public vs. private colleges and elite vs. non-elite colleges:  
+Private colleges have a higher median acceptance rate than public colleges. Private colleges also have a smaller interquartile range and range than public colleges, but have some outliers with very low acceptance rates.  
+
+Elite colleges have a much lower median, Q1 and Q3 acceptance rate than non-elite colleges, though elite colleges have a wider interquartile range and range of acceptance rates. 
+```{r}
+college$Accept.Rate = college$Accept/ college$Apps 
+par(mfrow = c(1,2))
+plot(college$Private,college$Accept.Rate, xlab = "Private", ylab = "Acceptance Rate")
+plot(college$Elite,college$Accept.Rate, xlab = "Elite", ylab = "Acceptance Rate")
+
+```
+
+3. Linear regression to see how Private and Elite statuses affect acceptance rate:  
+Controlling for graduation rate and out-of-state tuition, on average, private colleges have 8 percentage points higher acceptance rate than public colleges. On average, elite colleges have 18 percentage points lower acceptance rate than non-elite colleges. This result is consistent with the box plots above. 
+```{r}
+options("scipen"=100, "digits"=4) # -100 -> scientific notation
+reg1 <- lm(Accept.Rate~Private + Elite + Grad.Rate + Outstate, data = college)
+summary(reg1)
+```
+

@@ -1,0 +1,398 @@
+---
+title: "Stats 202 HW4"
+author: "Jenny Tian"
+date: "November 4, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r echo=FALSE, results = 'hide', message = FALSE}
+#install.packages("tinytex")
+#tinytex::install_tinytex()
+```
+
+
+```{r, warning = F, message = F}
+#install.packages("bookdown")
+#install.packages("ISLR")
+#install.packages("class")
+library("ISLR")
+library("MASS")
+library("bookdown")
+library("class")
+library("dplyr")
+library("tidyr")
+library("ggplot2")
+library("boot")
+
+options("scipen"=100, "digits"=6)
+
+```
+
+
+
+
+## Problem 1: 5.4 Ex3 k-fold CV
+
+###(a) what is k-fold CV (use peudo-code)
+
+k-fold CV is implemented by  
+
+1. Randomly and equally split the dataset into k subsets/folds 
+
+2. for i = 1, 2, ..., k:   
+
+(a) Hold out the ith fold as test set, and use the remaining k-1 folds as training dataset to fit the model.  
+(b) Test the model fit on the ith fold and calculate a test error $Err_i$.  
+
+3. Repeat this for k times, each time using a different subset as the test set and the others as the training dataset. Then we get k estimates of test error $Err_1, Err_2, ..., Err_k$.  
+
+4. The k-fold CV error is the average of these k test error estimates:   $CV(k) = \frac{1}{k}\sum_{i=1}^k Err_i$.  
+
+
+Below is the pseudo code for 10-fold CV:  
+
+1. number of obs N and splits k  
+  N <- nrow(data)  
+  k <- 10   
+
+2. generate indices of hold-out observations, holdout contains 10 vectors of indices, each containing 1/10 of the observations to be the validation set  
+  holdout <- split(sample(1:N), 1:k)  
+
+  fit <- rep(0,10)  
+  prediction <- rep(0,10)  
+  mse <- rep(0,10)  
+
+In each split:   
+  for (i = 1:10){  
+  
+3. fit the model on the training set  
+  fit[i] <- lm(response ~ var1+var2, data = data[-holdout$`i`,])  
+
+4. generate prediction on the validation set   
+  prediction[i] <- predict(fit[i], data[holdout[i,]], interval = "confidence")$.fitted   
+
+5. find test MSE   
+  mse[i] <- mean(prediction[i]-data[holdout[i,]]$response)
+}  
+
+6. calculate the average of the k test errors to get the k-fold CV error  
+  mean(mse)  
+
+###(b) 
+
+### k-fold CV compared to validation set approach:
+
+Advantages:  
+
+1. k-fold CV has a smaller bias than validation set approach. Validation set approach only uses half of the data. Since statistical methods tend to perform better when trained on more observations, this suggests that validation set approach might overestimate the test error rate for the model fit on the entire dataset. Since k-fold CV uses more observations to train the model, its test error estimate has a smaller bias. 
+
+2. k-fold CV also has smaller variability of the test error estimates that result from different random splitting of the data. Validation set approach has highly variable test error rate depending on which observations are randomly included in the training set and which are in the validation set. k-fold CV is less affected by the random splitting of data into folds, because it takes the average of the k estimates. Because of the square root law where the variance of averages is only /$\frac{1}{\sqrt(n)}$ of the variance of the observations, k-fold CV estimates are less variable due to random splits. 
+
+Disadvantages: 
+
+1. k-fold CV is more computationally heavy than validation set approach, as the models have to be fit k times. 
+
+
+### k-fold CV compared to LOOCV: 
+
+Advantages:  
+
+1. k-fold CV estimate has a smaller variance than LOOCV estimate. LOOCV estimate is an average of n test error estimates trained on almost identical data. As these n training sets are almost identical, the error estimates are highly correlated. Thus, the average of these n highly correlated test error estimates has a large variance. In contrast, the training sets in k-fold CV are less overlapped, so the test error estimates from k fitted models are less correlated and the mean (k-fold CV test error estimate) is thus less variable. 
+
+2. k-fold CV is computationally less intensive, as the models only need to fit k times, as opposed to n times. 
+
+Disadvantages:   
+
+1. k-fold CV has a larger bias than LOOCV. Since each training subset in LOOCV uses n-1 data points, which is almost the same as the full dataset, the average of these n estimates would be almost unbiased to the true test error. However, in k-fold CV, each training set only has $n\frac{k-1}{k}$ data points, so the estimates from these smaller sample sizes might overestimate the test error on the full dataset. 
+
+2. There is some variability of k-fold estimates as a result of the randomness in how the dataset is divided into k folds. Each random split will result in slightly different k-fold CV estimate. However, LOOCV is deterministic in that performing LOOCV on the same dataset again will always yield the same result. 
+
+
+
+## Problem 2: 5.4 Ex5 Validation Set Approach to estimate test error of logistic regression 
+
+###(a) fit a logistic regression 
+```{r}
+data(Default)
+glm.fit <- glm(default ~ student + income, data = Default, family=binomial)
+summary(glm.fit)
+```
+
+###(b) Use VS to estimate the test error of this model 
+
+The validation set error is 4.86%. 
+
+```{r}
+# split the data into two 
+set.seed(1)
+train <- sample(nrow(Default), nrow(Default)/2)
+
+# fit logistic regression using only training obs 
+glm.train <- glm(default ~ balance + income, data = Default, family=binomial, subset = train)
+
+# predict using the validation set 
+glm.predict <- predict(glm.train, data = Default[-train, ], type = "response")
+contrasts(Default$default)
+
+# if posterior prob > 0.5 then default = Yes 
+glm.predict.result <- rep("No", nrow(Default[-train, ]))
+glm.predict.result[glm.predict > 0.5] = "Yes"
+
+# compute validation set error (fraction of missclassifications)
+table(glm.predict.result, Default[-train, ]$default)
+mean(glm.predict.result!= Default[-train, ]$default)
+```
+
+
+
+###(c) Repeat (b) three times using different splits 
+
+Depending on the random split of the data into training and validation sets, the estimated test error ranges from 4.62% to 4.74%, with a variance less than 0.000001. This shows that the randomness of the splitting is not a big concern. 
+
+```{r}
+# split the data into two 
+set.seed(2)
+vs_error <- rep(0,3)
+for (i in 1:3){
+train <- sample(nrow(Default), nrow(Default)/2)
+# fit logistic regression using only training obs 
+glm.train <- glm(default ~ balance + income, data = Default, family=binomial, subset = train)
+# predict using the validation set 
+glm.predict <- predict(glm.train, data = Default[-train, ], type = "response")
+# if posterior prob > 0.5 then default = Yes 
+glm.predict.result <- rep("No", nrow(Default[-train, ]))
+glm.predict.result[glm.predict > 0.5] = "Yes"
+# compute validation set error (fraction of missclassifications)
+vs_error[i] <- mean(glm.predict.result!= Default[-train, ]$default)
+}
+
+vs_error
+var(vs_error)
+```
+
+
+
+
+###(d)
+
+Using income, balance and student as the predictors, the test error estimated by validation set approach decreases slightly to 4.28%. Including the dummy variable for student reduces the test error rate. 
+
+```{r}
+# split the data into two 
+set.seed(1)
+train <- sample(nrow(Default), nrow(Default)/2)
+
+# fit logistic regression using only training obs 
+glm.train.d <- glm(default ~ student + income + balance, data = Default, family=binomial, subset = train)
+
+# predict using the validation set 
+glm.predict.d <- predict(glm.train, data = Default[-train, ], type = "response")
+
+# if posterior prob > 0.5 then default = Yes 
+glm.predict.result.d <- rep("No", nrow(Default[-train, ]))
+glm.predict.result.d[glm.predict.d > 0.5] = "Yes"
+
+# compute validation set error (fraction of missclassifications)
+table(glm.predict.result.d, Default[-train, ]$default)
+mean(glm.predict.result.d!= Default[-train, ]$default)
+```
+
+
+
+## Problem 3: 5.4 Ex6 Bootstrap vs. standard error formula to estimate standard errors of logistic regression coefficients 
+
+###(a) Analytical estimated standard errors 
+
+The standard errors (estimated analytically) for the coefficients of balance and income are 0.00022737 and 0.00000499 respectively. 
+
+```{r}
+data(Default)
+glm.6a <- glm(default ~ balance + income, data = Default, family=binomial)
+summary(glm.6a)
+coef(glm.6a)
+```
+
+###(b) boot.fn(data, index) to return coefficient estimates
+
+```{r}
+boot.fn <- function(data, index)
+        return(coef(glm(default ~ balance + income, data = data, family=binomial, subset = index)))
+
+```
+
+
+###(c) Bootstrap estimated standard erorrs 
+
+Resampling with replacement R = 1000 times from the Default data, I get the bootstrap-estimated standard errors for the coefficients of balance and income are 0.00022679547and 0.00000458252 respectively. 
+```{r}
+set.seed(1)
+boot(Default, boot.fn, R=1000)
+```
+###(d) Comparison 
+
+The bootstrap standard error estimates are very similar to though slightly lower than the analytical standard error estimates 0.00022737  and 0.00000499. This shows that the bootstrap approach produces very close estimates as the formulaic approach.  
+
+## Problem 4: 5.4 Ex9 Bootstrap to estimate standard errors
+
+### a
+
+Estimated population mean as estimated by sample mean is 3.61352. 
+```{r}
+library(MASS)
+mu.bar <- mean(Boston$crim)
+mu.bar
+```
+
+
+### (b) standard error of the sample mean
+Standard error of sample mean is calculated as sample standard deviation divided by the square root of the sample size. 
+
+Standard error of sample mean is 0.382385. 
+
+```{r}
+sd(Boston$crim) / sqrt(nrow(Boston))
+```
+
+### (c) Bootstrap estimation 
+
+The *se* by *boot* is very similar to, though slightly larger than that in (b) (0.394839 vs 0.382385).
+
+```{r}
+set.seed(2)
+boot.fn <- function(data, index) mean(data[index])
+boot.se <- boot(Boston$crim, boot.fn, R = 1000)
+boot.se
+```
+
+
+
+### (d) 95% confidence interval based on bootstrap SE
+
+The 95% confidence interval from bootstrap SE is approximately [2.82385,4.4032] (using the hint in the textbook); the 95% confidence interval from t test is [2.86226,4.36479]. As the standard error estimates are very similar, the confidence intervals are also very similar, where the t test confidence interval is slightly smaller than that from bootstrap. 
+```{r}
+mu.bar - 2 * 0.394839; mu.bar + 2 * 0.394839
+t.test(Boston$crim)
+```
+
+
+### (e) Estimate of median 
+```{r}
+median(Boston$crim)
+```
+
+### (f)
+
+ Bootstrap estimate of SE of median is 0.0374573. The median estimate is much smaller than the mean estimate, showing that the crime rate is very right-skewed. 
+```{r}
+set.seed(2)
+med.se <- function(data, index) median(data[index])
+boot(Boston$crim, med.se, R = 1000)
+```
+
+### (g) 
+
+Estimated 10th percentile is 0.038195.
+```{r}
+quantile(Boston$crim, 0.1)
+```
+
+### (h)
+
+The standard error of the estimated 10th percentile is 0.00312251. 
+
+
+```{r}
+set.seed(2)
+q0.1 <- function(data, index) quantile(data[index], 0.1)
+boot(Boston$crim, q0.1, 1000)
+```
+
+
+## Problem 5: bootstrapping to estimate standard errors in Principal Components Analysis (PCA)
+
+###(1)
+```{r}
+set.seed(1)
+boot.fn.5 <- function(data, index){
+        pr.out <- prcomp(data[index,], scale = TRUE)
+        pr.var <- pr.out$sdev^2
+        pve <- sum(pr.var[1:2])/sum(pr.var)
+        return(pve)
+        } 
+x <- boot(data = USArrests, statistic = boot.fn.5, R=1000)
+hist(x$t, main = "Histogram of proportion of variance \n explained by the first 2 principal components", xlab = "in 1000 Bootstrap resamplings of USArrests", xlim = c(0.75,1))
+```
+
+
+###(2) Estimate Standard Errors and 95% CI 
+
+The standard error of the proportion of variance explained by the first two PC is 0.0212877. Using percentile interval as the confidence interval, the bootstrap 95% CI is [0.829131, 0.911305]. 
+
+```{r}
+set.seed(1)
+boot.fn.5 <- function(data, index){
+        pr.out <- prcomp(data[index,], scale = TRUE)
+        pr.var <- pr.out$sdev^2
+        pve <- sum(pr.var[1:2])/sum(pr.var)
+        return(pve)
+        } 
+x <- boot(data = USArrests, statistic = boot.fn.5, R=1000)
+x
+# the default way to calculate bootstrap CI is use percentile: 
+# https://cran.r-project.org/web/packages/dabestr/vignettes/bootstrap-confidence-intervals.html
+quantile(x$t, probs = c(0.025, 0.975))
+```
+
+
+
+
+###(3)
+
+Estimating the standard error of the first PC loading by equation (5.8) is problematic because PC loadings are only unique up to a sign flip, but equation (5.8) uses the usual standard deviation formula where the mean of the bootstrap estimates is the simple sum of 1000 first PC loadings divided by 1000. 
+
+###(4)
+```{r}
+        
+set.seed(2)
+fn.5.4 <- function(data){
+        pr.out <- prcomp(data, scale = TRUE)
+        pr.1 <- pr.out$rotation[,1]
+        i <- which.max(abs(pr.out$rotation[,1]))
+        
+        boot.fn.5.4 <- function(data, index){
+        pr.out1 <- prcomp(data[index,], scale = TRUE)
+        sign <- sign(pr.out1$rotation[i])
+        pr.out1$rotation[,1] * sign
+        } 
+        
+        bootstrap <- boot(data = data, statistic = boot.fn.5.4, R=1000)
+        boxplot(bootstrap$t, main = "Boxplot of Signed First PC \n from 1000 Bootstrap Resamplings", xlab = "Column: 1 = Murder, 2 = Assault, 3 = UrbanPop, 4 = Rape", ylab = "First Principal Component Loadings")
+}
+
+
+```
+
+###(5)
+```{r}
+fn.5.4(USArrests)
+```
+
+###(6)
+
+The signed PC loading vector is essentially to make the ith element positive. As seen in the boxplots, the signed first PC loadings are now all positive in all bootstrap samples, except for a few outliers of negative UrbanPop loadings. Thus, we can calculate the standard deviation of these bootstrap first PC loading estimates to get the standard error of the first PC loading.  
+
+This method of changing signs of the PC loadings relies on the assumption that the four PC loadings are of the same sign (or at least most of the PC loadings are of the same sign as the ith PC loading). Under this assumption, multiplying the entire PC vector by the sign of its ith element will then make the PC vector generally, if not all, positive.  
+
+This would not give good standard error estimates for the other PCs beyond the first few. Each PC loading is orthogonal to the first few, so its signs are not necessarily the same as the first one. Therefore, by multiplying the later PCs by the sign of the ith element of the first PC would not necessarily make them generally positive.    
+
+
+
+
+
+
+
+
+

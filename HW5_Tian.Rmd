@@ -1,0 +1,500 @@
+---
+title: "Stats 202 HW5"
+author: "Jenny Tian"
+date: "November 11, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r echo=FALSE, results = 'hide', message = FALSE}
+#install.packages("tinytex")
+#tinytex::install_tinytex()
+```
+
+
+```{r, warning = F, message = F}
+#install.packages("bookdown")
+#install.packages("ISLR")
+#install.packages("class")
+# install.packages("leaps")
+# install.packages("glmnet")
+#install.packages("pls")
+
+library("ISLR")
+library("MASS")
+library("bookdown")
+library("class")
+library("dplyr")
+library("tidyr")
+library("ggplot2")
+library("boot")
+library("leaps")
+library("glmnet")
+library("pls")
+options("scipen"=100, "digits"=6)
+
+```
+
+
+
+
+## Problem 1: 6.8 Ex1 Comparing Subset Selection Methods
+
+###(a) 
+For any k, best subset selection produces the model with k predictors that has the smallest training RSS. Best subset selection considers all possible ${p \choose k}$ models and chooses the one with the smallest RSS, whereas both forward and backward stepwise selections choose among far fewer models with k predictors. (Forward selection considers p-k-1 such models and backward selection considers k+1 such models.) 
+
+###(b) 
+It depends on bias-variance tradeoff. All three methods choose among the models with k predictors according to training RSS, which has no direct relationship with test RSS. Best subset selection considers the greatest combination of k predictors, so its selection has the lowest training RSS but highest variance. Forward and backward selections choose among fewer models, so its selections have higher training RSS but lower variance than the one chosen by best subset selection. 
+
+
+###(c) 
+i. True. Forward selection is greedy and once it adds a variable in, it will not drop it. So the (k+1)-variable model must contain the predictors in the k-variable model.  
+
+ii. True. Backward selection drops the least relevant variable one at a time from a full model. The k-variable model is chosen by dropping the one variable in the (k+1)-variable model such that the remaining k variables produce the smallest training RSS. Thus, the k-variable model must be a subset of the (k+1)-variable model in backward selection. 
+
+iii. False. Forward and backward selections need not produce the same sequence of models. For example, if $X_1, X_2, X_4$~$N(0, 1)$ iid, $X_3 = X_1 + 3X_2$ and $Y=X_1 + 2X_2 + X_4 + \epsilon$, then forward selection would produce $X_3$, {$X_3, X_4$}, {$X_3, X_4, X_3$} , {$X_3, X_4, X_3, X_1$} and backward selection would produce ${X_1, X_2, X_3, X_4}$, {$X_1, X_2, X_4$}, {$X_2, X_4$}, {$X_2$}. So the 1-variable model of forward selection is not a subset of the 2-variable model of backward selection. 
+
+iv. False. Forward and backward selections need not produce the same sequence of models. In the same example in (iii), the 1-variable model of backward selection is not a subset of the 2-variable model of forward selection.
+
+v. False. For each k, best subset considers all possible combination of k predictors and choose the k-variable model with the lowest training RSS, irrespective what it chooses for the (k+1) or (k-1)-variable models. 
+
+## Problem 2: 6.8 Ex3 Lasso: what happens when s increases from 0
+
+###(a) 
+
+As we increase s from 0, the training RSS will (iv) steadily decrease.  
+
+When s is 0, all lasso coefficient estimates are zero, so the training RSS is the biggest because there are no predictors. As s increases, the predictors are less shrunken and more and more predictors are included in the regression, adding more flexibility to the model and thus decreasing the training RSS. When s is sufficiently large such that $s>=\sum_{j=1}^p |\beta_j^{OLS}|$, then s has no contraint on the OLS estimates, so the training RSS will be the smallest and will not decrease further.  
+
+###(b) 
+
+As we increase s from 0, the test RSS will (ii) decrease initially and then increase in a U shape.  
+
+When s=0, all lasso coefficient estimates are zero, so there are no predictors in the regression. At this point, the variance is 0 (as the zero lasso coefficient estimates do not change with training sets), but the bias is huge. As s increases, variance increases and bias decreases, so initially the test RSS would decrease until it reaches a minimum. After that point, the increase in variance would cause the model to overfit the training data and the test RSS would go up again. 
+
+###(c) 
+
+When s = 0, variance is 0, because all lasso coefficient estimates are zero. As s increases from 0, variance would increase because the constraint on the coefficients are loosened. Variance would increase until the variance of the OLS model, when s is big enough that it has no constraint on the coefficients. 
+
+###(d) 
+
+As s increases from 0, (squared) bias would (iv.) steadily decrease.  
+
+When s=0, all predictors are dropped from the regression, so the model is a constant line and thus has a huge bias on test data. As s increases, more and more predictors are added back and are less shrunken, so the bias decreases. When s is big enough such that it has no constraint on the coefficients, then the coefficient estimates are just OLS estimates, which are unbiased estimators (i.e. bias is zero).
+
+###(e) 
+
+Irreducible error will (v) remain constant, as it does not depend on the model fit. 
+
+
+## Problem 3: 6.8 Ex8 Best Subset Selection
+
+###(a) and (b) Generate simulated data:
+```{r}
+set.seed(1)
+x <- rnorm(100)
+eps <- rnorm(100)
+beta0 <- 0.5
+beta1 <- 0.5
+beta2 <- 0.5
+beta3 <- 0.5
+y <- beta0 + beta1 * x + beta2 * x^2 + beta3 * x^3 + eps
+plot(x, y)
+inp <- data.frame(x, y)
+```
+
+### (c) Fit with best subsets selection
+```{r}
+bss <- regsubsets(y ~ x + I(x^2) + I(x^3) + I(x^4) + I(x^5) + I(x^6) + I(x^7) + I(x^8) + I(x^9) + I(x^10), data = inp, nvmax = 10)
+bss.summary <- summary(bss)
+bss.summary
+
+par(mfrow=c(1,3))
+plot(bss.summary$adjr2, xlab = 'Number of variables', ylab = 'Adjusted R2', type = 'l')
+rsq.max.idx <- which.max(bss.summary$adjr2)
+points(rsq.max.idx, bss.summary$adjr2[rsq.max.idx], col = 'red', cex = 2, pch = 20)
+
+cp.min.idx <- which.min(bss.summary$cp)
+plot(bss.summary$cp, xlab = 'Number of variables', ylab = 'Cp', type = 'l')
+points(cp.min.idx, bss.summary$cp[cp.min.idx], col = 'red', cex = 2, pch = 20)
+
+bic.min.idx <- which.min(bss.summary$bic)
+plot(bss.summary$bic, xlab = 'Number of variables', ylab = 'BIC', type = 'l')
+points(bic.min.idx, bss.summary$bic[bic.min.idx], col = 'red', cex = 2, pch = 20)
+
+par(mfrow=c(1,3))
+plot(bss, scale = 'adjr2')
+plot(bss, scale = 'Cp')
+plot(bss, scale = 'bic')
+```
+According to adjusted $R^2$, BIC and $C_p$, the best model contains 3 predictors: $X$, $X^2$, $X^5$.
+
+Get the coefficient estimates of the best model:
+```{r}
+coef(bss, 3)
+```
+
+
+### (d)
+#### Fit with forward stepwise selection method:
+```{r}
+fss <- regsubsets(y ~ x + I(x^2) + I(x^3) + I(x^4) + I(x^5) + I(x^6) + I(x^7) + I(x^8) + I(x^9) + I(x^10), data = inp, method = 'forward', nvmax = 10)
+fss.summary <- summary(fss)
+fss.summary
+
+par(mfrow=c(1,3))
+plot(fss.summary$adjr2, xlab = 'Number of variables', ylab = 'Adjusted R2', type = 'l')
+rsq.max.idx <- which.max(fss.summary$adjr2)
+points(rsq.max.idx, fss.summary$adjr2[rsq.max.idx], col = 'red', cex = 2, pch = 20)
+
+cp.min.idx <- which.min(fss.summary$cp)
+plot(fss.summary$cp, xlab = 'Number of variables', ylab = 'Cp', type = 'l')
+points(cp.min.idx, fss.summary$cp[cp.min.idx], col = 'red', cex = 2, pch = 20)
+
+bic.min.idx <- which.min(fss.summary$bic)
+plot(fss.summary$bic, xlab = 'Number of variables', ylab = 'BIC', type = 'l')
+points(bic.min.idx, fss.summary$bic[bic.min.idx], col = 'red', cex = 2, pch = 20)
+```
+According to adjusted $R^2$ and $C_p$, the best model contains 4 predictors: $X$, $X^2$, $X^3$ and $X^5$.
+According to BIC, the best model contains 3 predictors: $X$, $X^2$ and $X^3$.
+
+
+Get the coefficient estimates of the two best models:
+```{r}
+coef(fss, 3)
+coef(fss, 4)
+```
+
+
+#### Fit with backward stepwise selection method:
+```{r}
+bks <- regsubsets(y ~ x + I(x^2) + I(x^3) + I(x^4) + I(x^5) + I(x^6) + I(x^7) + I(x^8) + I(x^9) + I(x^10), data = inp, method = 'backward', nvmax = 10)
+bks.summary <- summary(bks)
+bks.summary
+
+par(mfrow=c(1,3))
+plot(bks.summary$adjr2, xlab = 'Number of variables', ylab = 'Adjusted R2', type = 'l')
+rsq.max.idx <- which.max(bks.summary$adjr2)
+points(rsq.max.idx, bks.summary$adjr2[rsq.max.idx], col = 'red', cex = 2, pch = 20)
+
+cp.min.idx <- which.min(bks.summary$cp)
+plot(bks.summary$cp, xlab = 'Number of variables', ylab = 'Cp', type = 'l')
+points(cp.min.idx, bks.summary$cp[cp.min.idx], col = 'red', cex = 2, pch = 20)
+
+bic.min.idx <- which.min(bks.summary$bic)
+plot(bks.summary$bic, xlab = 'Number of variables', ylab = 'BIC', type = 'l')
+points(bic.min.idx, bks.summary$bic[bic.min.idx], col = 'red', cex = 2, pch = 20)
+```
+According to adjusted $R^2$, BIC and $C_p$, the best model contains 3 predictors: $X$, $X^4$ and $X^5$.
+
+
+
+Get the coefficient estimates of the best model by backward selection:
+```{r}
+coef(bks, 3)
+```
+
+Note that even though the three selection methods all pick the 3-predictor model (or forward selection picks the 4-predictor model using adjusted R-squared or adjusted $R^2$ and $C_p$), the best models they pick are all different. They all include $X$, but best selection method includes $X^2$ and $X^5$, forward selection method includes $X^2$ and $X^3$ and backward selection method includes $X^4$ and $X^5$. 
+
+Since we constructed Y to be a linear model of  $X$, $X^2$ and $X^3$, forward selection gives the best model.
+
+### (e) Fit with lasso model:
+
+We choose the $\lambda$ to such that the CV test error the lowest, so the optimal $\lambda = 0.00820244$. The coefficients are as follows. Lasso shrank the coefficients and dropped $X^7$ to $X^10$ out of the predictors. This is good since only $X$, $X^2$ and $X^3$ affect Y by construction. 
+```{r}
+X <- data.frame(x, x^2, x^3, x^4, x^5, x^6, x^7, x^8, x^9, x^10)
+set.seed(1)
+lasso.cv <- cv.glmnet(as.matrix(X), y, alpha = 1)
+plot(lasso.cv)
+lbl <- lasso.cv$lambda.min
+lbl
+lasso.res <- glmnet(as.matrix(X), y, alpha = 1)
+predict(lasso.res, type = "coefficients", s = lbl)
+```
+
+
+### (f) Fit $Y = \beta_0 + \beta_7 X^7 + \epsilon$ with best subsets method and Lasso 
+
+#### Fit with best subset selection
+```{r}
+beta7 <- 0.5
+yf <- beta0 + beta7 * x^7 + eps
+
+bsf <- regsubsets(yf ~ x + I(x^2) + I(x^3) + I(x^4) + I(x^5) + I(x^6) + I(x^7) + I(x^8) + I(x^9) + I(x^10), data = inp, nvmax = 10)
+bsf.summary <- summary(bsf)
+bsf.summary
+
+par(mfrow=c(1,3))
+plot(bsf.summary$adjr2, xlab = 'Number of variables', ylab = 'Adjusted R2', type = 'l')
+rsq.max.idx <- which.max(bsf.summary$adjr2)
+points(rsq.max.idx, bsf.summary$adjr2[rsq.max.idx], col = 'red', cex = 2, pch = 20)
+
+cp.min.idx <- which.min(bsf.summary$cp)
+plot(bsf.summary$cp, xlab = 'Number of variables', ylab = 'Cp', type = 'l')
+points(cp.min.idx, bsf.summary$cp[cp.min.idx], col = 'red', cex = 2, pch = 20)
+
+bic.min.idx <- which.min(bsf.summary$bic)
+plot(bsf.summary$bic, xlab = 'Number of variables', ylab = 'BIC', type = 'l')
+points(bic.min.idx, bsf.summary$bic[bic.min.idx], col = 'red', cex = 2, pch = 20)
+```
+
+
+According to adjusted $R^2$, the best model contains 4 predictors: $X$, $X^2$, $X^3$ and $X^7$.  
+
+According to $C_p$, the best model contains 2 predictors: $X^7$ and $X^2$.  
+
+According to BIC, the best model contains 1 predictor: $X^7$.  
+
+```{r}
+coef(bsf,4)
+coef(bsf,2)
+coef(bsf,1)
+
+```
+
+#### Fit with lasso:
+
+```{r}
+X <- data.frame(x, x^2, x^3, x^4, x^5, x^6, x^7, x^8, x^9, x^10)
+lasso.cv <- cv.glmnet(as.matrix(X), yf, alpha = 1)
+plot(lasso.cv)
+lbl <- lasso.cv$lambda.min
+lasso.res <- glmnet(as.matrix(X), yf, alpha = 1, lambda = lbl)
+lasso.res$beta
+lasso.res$a0
+```
+
+Lasso gives rise to a model with only three predictors $X^5, X^7, X^9$. 
+
+Since the model with the lowest BIC produced by best subset selection only has $X^7$ and the model with the lowest $C_p$ only includes $X^7, X^2$, and the coefficient estimate of $X^7$ are closer to 0.5 than the one in Lasso, we know that best subset selection produces a better fit than Lasso.  
+
+## Problem 4: 6.8 Ex9 College data
+
+### (a) Split data into training and test
+```{r}
+set.seed(1)
+dim(College)
+train <- sample(1: nrow(College), nrow(College)/2)
+test <- -train
+```
+###(b) fit OLS 
+
+The test MSE from OLS regression is 1,108,531.
+
+```{r}
+lr.fit <- lm(Apps ~ ., data = College[train, ])
+summary(lr.fit)
+lr.pred <- predict(lr.fit, College[test, ])
+mean((lr.pred - College[test, ]$Apps) ^ 2)
+```
+
+###(c) fit a ridge regression 
+
+The test MSE from ridge regression is 1,029,555.
+
+```{r}
+set.seed(1)
+inpx <- model.matrix(Apps ~ ., data = College)[, -1]
+inpy <- College$Apps
+cv.out <- cv.glmnet(inpx[train, ], inpy[train], alpha = 0)
+rr.fit <- glmnet(inpx[train, ], inpy[train], alpha = 0, lambda = cv.out$lambda.min)
+coef(rr.fit)
+rr.pred <- predict(rr.fit, inpx[test, ], s = cv.out$lambda.min)
+mean((rr.pred - inpy[test]) ^ 2)
+```
+
+###(d): fit with lasso
+
+The test MSE from lasso is 1,034,786. The number of non-zero coefficient estimates is 16.
+
+```{r}
+set.seed(1)
+cv.out <- cv.glmnet(inpx[train, ], inpy[train], alpha = 1)
+lasso.fit <- glmnet(inpx[train, ], inpy[train], alpha = 1, lambda = cv.out$lambda.min)
+coef(lasso.fit)
+sum(coef(lasso.fit)!=0)
+lasso.pred <- predict(lasso.fit, inpx[test, ], s = cv.out$lambda.min)
+mean((lasso.pred - inpy[test]) ^ 2)
+
+```
+
+
+###(e) fit with PCR
+
+CV MSE is smallest when M = 17; the CV MSE at other M's are all much larger. This amounts to no dimension reduction at all and is equivalent to simply performing least squares. When M = 17, the test MSE is 1,108,531, same as from least squares. 
+
+As a robustness check, the test MSE at other M's are also much larger than 1,108,531.
+```{r}
+set.seed(1)
+pcr.fit <- pcr(Apps ~ ., data = College, subset = train, scale = TRUE, validation = 'CV')
+summary(pcr.fit)
+validationplot(pcr.fit, val.type = 'MSEP')
+pcr.fit$ncomp
+pcr.pred <- predict(pcr.fit, inpx[test, ], ncomp = 17)
+mean((pcr.pred - inpy[test]) ^ 2)
+```
+
+###(f): fit with PLS
+
+CV MSE is smallest when M = 17. When M = 17, the test MSE is 1,108,531.
+
+If choosing a smaller M with a slighly larger Cv MSE, such as when M = 6, then the test MSE 1,112,189 is larger. 
+```{r}
+set.seed(1)
+pls.fit <- plsr(Apps ~ ., data = College, subset = train, scale = TRUE, validation = 'CV')
+validationplot(pls.fit, val.type = 'MSEP')
+pls.fit$ncomp
+pls.pred <- predict(pls.fit, inpx[test, ], ncomp = 17)
+mean((pls.pred - inpy[test]) ^ 2)
+```
+
+###(g): Compare test errors from five models
+
+The validation set error for the different models are      
+
+OLS: 1,108,531
+
+Ridge regression: 1,029,555 
+
+Lasso (p=16): 1,034,786 
+
+PCR (M=17): 1,108,531
+
+PLR (M=17): 1,108,531
+
+Validation set error is the smallest (1,029,555) for ridge regression, followed by Lasso, OLS = PCR and PLR. Since in this dataset the number of observations far exceed the number of predictors (777 >> 18), there doesn't need to be much feature reduction, which explains why all five methods give similar fit. In OLS we find that some variables do not have statistically significant effects on Apps, so ridge regression reduces the variance by shrinking the coefficient estimates and thus achieves a better fit than least squares. Similarly, lasso achieves a better fit than least squares by shrinking the coefficient estimates and dropping out one irrelevant predictor, thus reducing the variance while introducing a small bias. PCR and PLR include the same number of score vectors as the number of predictors in the full model, thus achieving the same fit as least squares. 
+
+## Problem 5: 6.8 Ex11 Boston data
+
+###(a) 
+
+I will try out OLS regression, best subset, the Lasso, ridge regression and PCR. 
+
+```{r}
+data(Boston)
+attach(Boston)
+dim(Boston)
+# summary(Boston)
+```
+
+Splitting Data into training and test data => use validation set error to compare models 
+```{r}
+set.seed(1)
+subset<-sample(nrow(Boston),nrow(Boston)*0.70)
+boston.train<-Boston[subset,]
+boston.test<-Boston[-subset,]
+```
+
+#### OLS regression: test MSE = 52.2422
+```{r}
+slr.full<-lm(crim~.,data=boston.train)
+coef(slr.full)
+slr.predict<-predict(slr.full,boston.test)
+slr.MSE<-mean((slr.predict-boston.test$crim)^2)
+slr.MSE
+```
+#### Best Subset: test MSE = 52.3077
+```{r}
+bsm<-regsubsets(crim~.,data=boston.train,nbest=1,nvmax=13)
+bsm.summary <- summary(bsm)
+bsm.summary
+boston.test.mat <- model.matrix(crim~ ., data = boston.test, nvmax = 13)
+val.errors <- rep(NA, 13)
+for (i in 1:13) {
+    coefi <- coef(bsm, id = i)
+    pred <- boston.test.mat[, names(coefi)] %*% coefi
+    val.errors[i] <- mean((pred -boston.test$crim)^2)
+}
+plot(val.errors, xlab = "Number of predictors", ylab = "Test MSE", type = "b")
+coef(bsm,which.min(val.errors))
+bsm.MSE<-val.errors[11]
+bsm.MSE
+```
+
+#### Ridge Regression: test MSE =  52.9344
+```{r}
+bostontrain.mat<-model.matrix(crim~.,data=boston.train)
+bostontest.mat<-model.matrix(crim~.,data=boston.test)
+
+ridge.model<-glmnet(bostontrain.mat,boston.train$crim,alpha=0)
+
+#Finding lambda that gives minimum MSE by cross validation on training set
+boston.cv.ridge<-cv.glmnet(bostontrain.mat,boston.train$medv,alpha=0)
+
+#Visualizing MSE vs Log(lambda)
+plot(boston.cv.ridge)
+
+# Fit the regression with the best lambda (from lowest CV error)
+boston.bestlam.ridge<-boston.cv.ridge$lambda.min
+ridge.model.1<-glmnet(bostontrain.mat,boston.train$crim,alpha=0,lambda=boston.bestlam.ridge)
+coef(ridge.model.1)
+
+# Get the test error on the validation set 
+boston.pred.newridge<-predict(ridge.model,s=boston.bestlam.ridge,newx=bostontest.mat)
+
+ridge.MSE<-mean((boston.test$crim-boston.pred.newridge)^2)
+ridge.MSE
+```
+
+#### Lasso: test MSE =  54.0387
+```{r}
+
+lasso.model<-glmnet(bostontrain.mat,boston.train$crim,alpha=1)
+
+#Finding lambda that gives minimum MSE by cross validation on training set
+boston.cv.lasso<-cv.glmnet(bostontrain.mat,boston.train$medv,alpha=1)
+
+#Visualizing MSE vs Log(lambda)
+plot(boston.cv.lasso)
+
+# Fit the regression with the best lambda (from lowest CV error)
+boston.bestlam.lasso<-boston.cv.lasso$lambda.min
+lasso.model.1<-glmnet(bostontrain.mat,boston.train$crim,alpha=1,lambda=boston.bestlam.lasso)
+coef(lasso.model.1)
+
+# Get the test error on the validation set 
+boston.pred.newlasso<-predict(lasso.model,s=boston.bestlam.lasso,newx=bostontest.mat)
+
+lasso.MSE<-mean((boston.test$crim-boston.pred.newlasso)^2)
+lasso.MSE
+```
+#### PCR: test MSE =  52.2422
+
+Note that in PCR, the lowest CV error occurs when M=13. This is essentially the same as the original OLS regression, since the number of score vectors is equal to the number of original predictors. The test MSE is also the same as the OLS regression.
+```{r}
+pcr.model<-pcr(crim~.,data=boston.train,scale=TRUE,validation="CV")
+summary(pcr.model)
+#plotting Mean square error (MSEP) for different number of components
+validationplot(pcr.model,val.type="MSEP")
+pcr.model$ncomp
+#using 13 components to build the final model 
+pcr.model.13comp<-pcr(crim~.,data=boston.train,scale=TRUE,ncomp=13)
+summary(pcr.model.13comp)
+boston.predict.pcr<-predict(pcr.model,boston.test,ncomp=13)
+pcr.MSE<-mean((boston.test$crim-boston.predict.pcr)^2)
+pcr.MSE
+```
+
+
+###(b) 
+
+The validation set error for the different models are      
+
+OLS: 52.2422  
+
+Best Subset: 52.3077  
+
+Ridge regression: 52.9344  
+
+Lasso: 54.0387  
+
+PCR (equivalent to OSL in this case): 52.2422  
+
+Based on the validation set errors, it seems that the full OLS regression actually perform the best on the Boston data. The fact that the CV MSE is the lowest when all 13 score vectors are included in PCR also validates this point. 
+
+###(c) 
+
+My model involved all features in the data. The reason why regularization results in a poorer fit might be that n >> p, since there are 506 observations for 13 predictors in the data. Thus, feature reduction is unnecessary. In this case, an OLS using all features will result in an unbiased fit with low variance. 
+

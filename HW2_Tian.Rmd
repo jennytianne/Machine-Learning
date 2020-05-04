@@ -1,0 +1,492 @@
+---
+title: "Stats 202 HW2"
+author: "Jenny Tian"
+date: "October 7, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r echo=FALSE, results = 'hide', message = FALSE}
+#install.packages("tinytex")
+#tinytex::install_tinytex()
+```
+
+Discussed homework with Dominic Waltz, John Massad and Yin Gao.
+
+```{r, warning = F, message = F}
+#install.packages("bookdown")
+#install.packages("ISLR")
+library("ISLR")
+library("MASS")
+library("bookdown")
+options("scipen"=100, "digits"=4)
+```
+
+## Problem 1: 10.7, Ex1
+### (a) Prove 10.12
+
+\begin{math}
+\begin{aligned}
+\frac1{|C_k|} \sum_{i,i' \in C_k} \sum_{j=1}^p (x_{ij} - x_{i'j}) ^ 2
+= 2 \sum_{i \in C_k} \sum_{j=1}^p (x_{ij} - \bar x_{kj}) ^ 2\\
+\bar x_{kj} = \frac1{|C_k|} \sum_{i \in C_k} x_{ij}
+\end{aligned}
+\end{math}
+
+Proof:
+\begin{math}
+\begin{aligned}
+&\frac1{|C_k|} \sum_{i,i' \in C_k} \sum_{j=1}^p (x_{ij} - x_{i'j}) ^ 2 \\
+&= \frac1{|C_k|} \sum_{i \in C_k} \sum_{i' \in C_k} \sum_{j=1}^{p}( x_{ij}^2 + x_{i'j}^2 - 2x_{ij} x_{i'j}) \\
+&= \frac1{|C_k|} \sum_{j=1}^{p} (\sum_{i' \in C_k} \sum_{i \in C_k} x_{ij}^2 + \sum_{i \in C_k} \sum_{i' \in C_k} x_{i'j}^2 - \sum_{i \in C_k} \sum_{i' \in C_k}2x_{ij} x_{i'j}) \\
+&= \frac1{|C_k|} \sum_{j=1}^{p} (|C_k| \sum_{i \in C_k} x_{ij}^2 + |C_k| \sum_{i' \in C_k} x_{i'j}^2 - \sum_{i \in C_k} \sum_{i' \in C_k}2x_{ij} x_{i'j}) \\
+&=   2 \sum_{j=1}^{p}\sum_{i \in C_k} x_{ij}^2 - \frac2{|C_k|}\sum_{j=1}^{p}\sum_{i \in C_k} \sum_{i' \in C_k}x_{ij} x_{i'j}\\
+&= 2 \sum_{j=1}^{p}\sum_{i \in C_k} x_{ij}^2 - \frac2{|C_k|}\sum_{j=1}^{p}\sum_{i \in C_k} x_{ij} \sum_{i' \in C_k}x_{i'j}\\
+&= 2 \sum_{j=1}^{p}\sum_{i \in C_k} x_{ij}^2 - \frac2{|C_k|}\sum_{j=1}^{p}\sum_{i \in C_k} x_{ij}|C_k|\bar x_{kj}\\
+&= 2 (\sum_{j=1}^{p}\sum_{i \in C_k} x_{ij}^2 - \sum_{j=1}^{p}\sum_{i \in C_k} x_{ij}\bar x_{kj})\\
+&= 2 (\sum_{j=1}^{p}\sum_{i \in C_k} x_{ij}^2 - 2\sum_{j=1}^{p}\sum_{i \in C_k} x_{ij}\bar x_{kj} + \sum_{j=1}^{p}\sum_{i \in C_k} x_{ij}\bar x_{kj}) \\
+&= 2 (\sum_{j=1}^{p}\sum_{i \in C_k} x_{ij}^2 - 2\sum_{j=1}^{p}\sum_{i \in C_k} x_{ij}\bar x_{kj} + \sum_{j=1}^{p}|C_k|\bar x_{kj}^2) \\
+&= 2 (\sum_{j=1}^{p}\sum_{i \in C_k} x_{ij}^2 - 2\sum_{j=1}^{p}\sum_{i \in C_k} x_{ij}\bar x_{kj}+ \sum_{j=1}^{p}\sum_{i \in C_k}\bar x_{kj}^2) \\
+&= 2 \sum_{j=1}^{p}\sum_{i \in C_k} (x_{ij}^2 - 2x_{ij}\bar x_{kj} +  \bar x_{kj}^2) \\
+&= 2 \sum_{j=1}^{p}\sum_{i \in C_k} (x_{ij}- \bar x_{kj})^2 \\
+\end{aligned}
+\end{math}
+
+
+### (b)
+Each iteration of the algorithm would decrease the sum of squared distances of the each data point to its newly assigned cluster centroids. The identity (10.12) shows that each iteration would also decrease the sum of squared distances of each data point to every other data point in its cluster, i.e. the sum of within-cluster similiarities of K clusters (which is the objective 10.11). After sufficiently number of iterations, the algorithm would arrive at a local minimum of the sum of within-cluster similarities of all K clusters. 
+
+## Problem 2 - 10.7 Ex2
+
+### (a) (b)
+```{r, echo=FALSE}
+knitr::include_graphics("C:\\Users\\zhenying.tian\\Downloads\\Tuition Program\\Data Mining with R\\HW\\HW2\\HW2Q2_ab.JPG") 
+```
+
+### (c)
+
+The two clusters are (1,2) and (3,4).
+
+###(d)
+
+The two clusters are (4) and (3,(1,2)).
+
+### (e)
+```{r, echo=FALSE}
+knitr::include_graphics("C:\\Users\\zhenying.tian\\Downloads\\Tuition Program\\Data Mining with R\\HW\\HW2\\HW2Q2_e.JPG") 
+```
+
+## Problem 3 - 10.7 Ex9 Hierarchical Clustering
+
+###(a) Cluster states by complete linkage and Euclidean distance
+```{r}
+hc.complete <- hclust(dist(USArrests),method = "complete")
+plot(hc.complete, main = "Clustering of States by Complete Linkage", xlab = "", sub = "", cex =.9)
+```
+
+###(b) Cut into three clusters 
+```{r}
+cut <- cutree(hc.complete, 3)
+cut[cut == 1]
+cut[cut == 2]
+cut[cut == 3]
+
+```
+
+###(c) Cluster states by complete linkage and Euclidean distance, after scaling to have unit standard deviation
+```{r}
+hc.complete.scaled <- hclust(dist(scale(USArrests)),method = "complete")
+plot(hc.complete.scaled, main = "Clustering of States by Complete Linkage after Scaling", xlab = "", sub = "", cex =.9)
+```
+
+###(d) Effects of scaling on clustering
+
+Scaling has a great effect of hierarchical clustering by complete linkage. After scaling, 9/16 states in the old cluster 1 are now assigned to cluster 2 and 1 is assigned to cluster 3; 10/12 states in the old cluster 2 are now assigned to cluster 3. 
+
+For this dataset, the variables should be scaled before computing inter-observation dissimilarity, because the variables have very different units and variance. If unscaled, the variable "Assault" has a far larger variance than the other variables, causing the it to have a larger weight in the computation of the inter-observation dissimilarity. Since we'd like to put equal importance in each variable and not let the choice of unit affect the dissimilarity measure, scaling the variables to have unit standard deviation is preferred here. 
+```{r}
+cut.scaled <- cutree(hc.complete.scaled,3)
+cut.scaled[cut.scaled == 1]
+cut.scaled[cut.scaled == 2]
+cut.scaled[cut.scaled == 3]
+table(cut, cut.scaled)
+apply(USArrests, 2, var)
+```
+
+## Problem 4 - 10.7 Ex10 PCA and K-means Clustering
+
+### (a) Generate a simulated dataset of 20 observations in each of three classes, and 50 variables
+
+```{r}
+set.seed(2)
+x1 = matrix(rnorm(20*50, 0, 1), ncol = 50)
+x2 = matrix(rnorm(20*50, 5, 1), ncol = 50)
+x3 = matrix(rnorm(20*50, -10, 1), ncol = 50)
+x = rbind(x1, x2, x3)
+dim(x)
+```
+### (b) PCA: plot first two PC score vectors. 
+
+```{r}
+pr.out = prcomp(x, scale = T)
+#biplot(pr.out, scale = 0)
+true.labels <- c(rep(1, 20), rep(2,20), rep(3,20))
+true.labels 
+plot(pr.out$x[,1:2], col = true.labels, xlab = "PC1", ylab = "PC2", pch = 19)
+```
+
+### (c) K-means clustering with K = 3 (on the original data)
+
+The K-means clustering with K = 3 matches perfectly with the true cluster labels. 
+```{r}
+km.out.3 = kmeans(x, 3, nstart  = 20)
+table(km.out.3$cluster, true.labels)
+```
+
+### (d) K-means clustering with K = 2 (on the original data)
+
+The K-means clustering with K = 2 combines the first two true clusters into one cluster, and leaves the third true cluster as a cluster. 
+
+```{r}
+km.out.2 = kmeans(x, 2, nstart  = 20)
+table(km.out.2$cluster, true.labels)
+```
+
+### (e) K-means clustering with K = 4 (on the original data)
+
+The K-means clustering with K = 4 keeps the first two true clusters as is, and splits the third true cluster into two new clusters. 
+
+```{r}
+km.out.4 = kmeans(x, 4, nstart  = 20)
+table(km.out.4$cluster, true.labels)
+```
+
+### (f) K-means clustering with K = 3 (on the first two PC score vectors)
+
+The K-means clustering with K = 3 on the first two PC score vectors matches perfectly with the true cluster labels. 
+```{r}
+km.out.PC = kmeans(pr.out$x[,1:2], 3, nstart  = 20)
+table(km.out.PC$cluster, true.labels)
+```
+
+### (g) K-means clustering with K = 3 (after scaling the original data to unit standard deviation)
+
+The K-means clustering with K = 3 after scaling the original data to unit standard deviation matches perfectly with the true cluster labels. Scaling does not have a big effect on the accuracy of K-meams clustering in this particular dataset, because the variables in the original dataset are drawn from three normal distributions with 3 different means but all standard deviation 1, so the variables in the original dataset have pretty similar standard deviations (around 41). Therefore, for this dataset, scaling to have unit standard deviation is not that important to get an accurate K-means clustering result. 
+```{r}
+apply(x, 2, var)
+apply(scale(x, scale = T), 2, var)
+km.out.scaled = kmeans(scale(x, scale = T), 3, nstart  = 20)
+table(km.out.scaled$cluster, true.labels)
+```
+
+
+## Problem 5, 3.7 Ex4
+
+### (a) 
+The training residual sum of squares for the cubic regression is lower. Even though the true relationship between X and Y is linear, training set still has measurement error and other error variability, so the cubic regression can better fit the error than the linear regression. Also, adding more predictors always results in a more flexible model and thus fits the training dataset better and lowers the RSS. 
+
+### (b) 
+The test residual sum of squares for the linear regression is lower. Since the true relationship between X and Y is linear, a linear model would fit the test data better whereas a cubic regression is more likely to overfit the error term in the training dataset and fit the test dataset more poorly.
+
+### (c)
+The training residual sum of squares for the cubic regression is lower, because the cubic regression is more flexible than the linear regression and thus can fit the curvatures and error in the training dataset better, regardless of how linear or non-linear the true relationship is.
+
+### (d)
+There is not enough information to tell. The RSS in the test dataset depends on 1. the linearity of the true relationship and 2. the variance of the error term in the training dataset.  
+
+If the true relationship is not far from linear and the variance of the error term of the training data is large, then the linear regression would fit the test data better and has a lower test RSS, while the cubic regression would overfit the training data. 
+
+If the true relationship is very non-linear and the variance of the error term of the training data is small, then the cubic regression would fit the test data better and has a lower test RSS.
+
+
+
+## Problem 6 - 3.7 Ex9
+### (a)(b)
+```{r}
+plot(Auto) # equivalent to `pairs(Auto)`
+cor(within(Auto, rm(name)))
+```
+
+### (c)
+```{r}
+mfit <- lm(mpg ~ . -name, data = Auto)
+summary(mfit)
+```
+
+i. There is a relationship between the predictors and the response, because the F statistic has a p-value lower than 0.001, which means we can reject the null hypothesis that all the coefficients are zero at the 0.1% significance level.
+
+ii. At the 0.1% significance level, weight, year and origin have statistically significant relationships to the response.
+
+iii. Cars become more oil-efficient as the service life continue. In particular, on average miles per gallon increase around 0.75 with each new model year, holding other predictors constant. 
+
+### (d)
+```{r}
+par(mfrow=c(2,2))
+plot(mfit)
+par(mfrow=c(1,1))
+plot(predict(mfit), rstudent(mfit))
+abline(3, 0, col = "red")
+```
+The residual plot and the studentized residual plot suggest that there are some possible outliers (four observations with studentized residual > 3), but those ourliers are not too extreme (studentized residuals not far from 3).  
+
+The leverage plot suggests the no. 14 observation has an unusually high leverage.
+
+## Problem 7 - 3.7 Ex14
+
+### (a)
+
+Perform the following commands in R:
+```{r}
+set.seed(1)
+x1 <- runif(100)
+x2 <- 0.5 * x1 + rnorm(100) / 10
+y <- 2 + 2 * x1 + 0.3 * x2 + rnorm(100)
+```
+
+The linear model is:
+$$
+y = 2 + 2x_1 + 0.3x_2 + \epsilon
+$$
+
+The coefficients are:
+$$
+\beta_0 = 2 \\
+\beta_1 = 2 \\
+\beta_2 = 0.3
+$$
+
+### (b) 
+The correlation between x1 and x2 is 0.8351. They are strongly positively correlated.
+
+```{r}
+cor(x1, x2)
+plot(x1, x2)
+```
+
+### (c)predict $y$ using both $x1$ and $x2$.
+
+```{r}
+lm.c <- lm(y ~ x1 + x2)
+summary(lm.c)
+```
+$\hat\beta_0 = 2.13$, $\hat\beta_1 = 1.44$, $\hat\beta_2 = 1.01$.$\hat\beta_1$ and $\hat\beta_2$ are both far from the true coefficients (2 and 0.3, respectively).
+
+Since the p-values of the t-statistic(0.0487 and 0.3754) are both larger than 0.01, we can't reject the null hypothesis of $\beta_1 = 0$ and $\beta_2 = 0$ at the 1% significance level. (Technically, 0.0487 is smaller than 0.05, so we can also reject  $\beta_1 = 0$ at the 5% signifcance level, but 0.0487 is also very close to 0.05.)
+
+### (d) predict $y$ using only $x1$.
+Comment on your results. Can you reject the null hypothesis $H_0 : \beta_1 = 0$?
+```{r}
+lm.d<- lm(y ~ x1)
+summary(lm.d)
+```
+Since of the p-value of $\beta_1 = 1.976$ is smaller than .001, we can reject the $H_0: \beta_1 = 0$ hypothesis. $x1$ has a statistically significant effect of 1.976 on y. 
+
+### (e) predict $y$ using only $x2$.
+
+```{r}
+lm.e<- lm(y ~ x2)
+summary(lm.e)
+```
+Since of the p-value of $\beta_1 = 2.900$ is smaller than .001, we can reject the $H_0: \beta_1 = 0$ hypothesis. $x2$ has a statistically significant effect of 2.900 on y. 
+
+###(f)
+They results do not contradict each other. As $x1$ and $x2$ are strongly correlated, i.e. collinear, the standard errors for the coefficients are large, the t statistics are small, and the p-values are large. So the effects of $x1$ and $x2$ become statistically insignificant in the presence of collinearity. After dropping one of the predictors from the regression model, collinearity is solved, so the remaining predictor has a statistically significant effect on the response. 
+
+###(g) Re-fit the linear models from (c) to (e) using this new data: 
+
+```{r}
+x1 <- c(x1, 0.1)
+x2 <- c(x2, 0.8)
+y <- c(y, 6)
+```
+
+
+What effect does this new observation have on the each of the models?
+In each model, is this observation an outlier? A high-leverage point? Both?
+Explain your answers.
+
+```{r}
+lm.g <- lm(y ~ x1 + x2)
+summary(lm.g)
+par(mfrow=c(2,2))
+plot(lm.g)
+par(mfrow=c(1,1))
+plot(predict(lm.g), rstudent(lm.g))
+abline(3, 0, col = "red")
+points(predict(lm.g)[101], rstudent(lm.g)[101], col = 'red', cex = 2, pch = 3)
+```
+
+This observation drastically disturbs the relationship between $y$ and $x1$, $x2$.The coefficients become even further from the true values. However, the collinearity issue is less pronounced, as $\beta_2$ is now statistically significant at the 1% significance level, even though $\beta_1$ is still statistically insignificant. Previously both coefficients were insignificant. 
+
+From these plots we can see, this point (101) is a high-leverage point, but not an outlier for this model.
+
+```{r}
+lm.g1 <- lm(y ~ x1)
+summary(lm.g1)
+par(mfrow=c(2,2))
+plot(lm.g1)
+par(mfrow=c(1,1))
+plot(predict(lm.g1), rstudent(lm.g1))
+points(predict(lm.g1)[101], rstudent(lm.g1)[101], col = 'red', cex = 2, pch = 3)
+```
+$x1$ still has a statistically significant effect on $y$, but this effect is smaller (1.766 vs. 1.976).   
+From these plots we can see, this observation (101) is both an outlier and a high-leverage point. 
+
+```{r}
+lm.g2 <- lm(y ~ x2)
+summary(lm.g2)
+par(mfrow=c(2,2))
+plot(lm.g2)
+par(mfrow=c(1,1))
+plot(predict(lm.g2), rstudent(lm.g2))
+```
+$x2$ still has a statistically significant effect on $y$, but this effect is slightly larger (3.119 vs. 2.900).   
+From these plots we can see, this observation (101) is a high-leverage point but not an outlier, so it doesn't change the coefficient too much. 
+
+## Problem 8 - 3.7 Ex15
+### (a) SLR of per capita crime rate on all predictors 
+
+```{r}
+library(MASS)
+data(Boston)
+table(Boston$chas)
+names(Boston)
+```
+
+Extract the p values of $\beta_1$ from single linear regressions of "crim" on other variables:  
+All predictors except "chas" has statistically significant associations with "crim".
+
+```{r}
+col10 <- names(Boston)[-1]
+lm.test <- vector("list", length(col10))
+
+for(i in seq_along(col10)){
+    lm.test[[i]] <- lm(reformulate(col10[i], "crim"), data = Boston)
+}
+
+p <- function(lm.object){
+        summary(lm.object)$coefficients
+}
+lapply(lm.test,p)
+
+```
+The residual plots of crim on rm shows that despite some outliers and high-leverage points, there is a general linear association between number of rooms per dwelling and the per capital crime rate. 
+```{r}
+par(mfrow=c(2,2))
+plot(lm(crim ~ rm , data = Boston))
+```
+
+```{r, echo = F, results = "hide"}
+function_lm <- function(lm_object){
+        f <- summary(lm_object)$fstatistic
+        p <- pf(f[1],f[2],f[3], lower.tail = F)
+        attributes(p) <- NULL
+        return(p)
+}
+
+results <- combn(names(Boston), 2, 
+                 function(x) {function_lm(lm(Boston[,x]))}, 
+                 simplify = F)
+vars <- combn(names(Boston), 2)
+names(results) <- paste0(vars[1,], "~", vars[2,])
+results[1:13]
+```
+
+### (b) Multilinear regression on all the other variables:
+
+At the significance level of 5%, we can reject the null hypothesis that $\beta_j = 0$ for predictors "zn", "dis", "rad", "black", and "medv", as the p-values of their coefficients are smaller than 0.05. 
+
+```{r}
+lm.multi <- lm(crim ~ . , data = Boston)
+# same as lm(crim ~ . -crim, data = Boston)
+summary(lm.multi)
+```
+
+
+### (c) 
+
+In the presence of other predictors, some of the coefficients lose their statistical significance. Some predictors also have different coefficients in the single vs. multilinear regressions. In particular, "nox" has a coefficient of 31.25 when it's the only regressor, but has a coefficient of -10.31 in the presence of other predictors. These differences suggest that there are some correlations and collinearity among the predictors (for example, "nox" is strongly positively correlated "indus", "age", and strongly negatively correlated with "dis"). 
+```{r}
+#mul.coefs <- coef(lm.multi)[-1] #exclude the intercept
+#slr.coefs <- c(coef(lm.test[[1]])[2], coef(lm.test[[2]])[2], coef(lm.test[[3]])[2], coef(lm.test[[4]])[2], 
+#coef(lm.test[[5]])[2], coef(lm.test[[6]])[2], coef(lm.test[[7]])[2], coef(lm.test[[8]])[2], coef(lm.test[[9]])[2], 
+#coef(lm.test[[10]])[2], coef(lm.test[[11]])[2], coef(lm.test[[12]])[2], coef(lm.test[[13]])[2])
+#plot(slr.coefs, mul.coefs)
+cor(Boston[-1])
+```
+
+
+
+### (d)
+
+
+For rm, zn, rad, tax, the quadratic term has statistically significant coefficient, suggesting non-linear relationships with crim. 
+
+For indus, nox, dis, age, ptratio, both the $x^2$ and $x^3$ terms have statistically significant coefficients, suggesting non-linear associations with crim.  
+
+The polynomial regression on "chas" is skipped because "chas" is a dummy variable and also has no linear relationship with crim, and thus no non-linear relationship either.  
+
+black has no non-linear relationship with crim.  
+
+lstat has a subtle non-linear relatonship with crim (only statistically significant at 5% significance level).  
+
+
+
+```{r}
+lm15.d1 <- lm(crim ~ poly(zn, 3), data = Boston)
+lm15.d2 <- lm(crim ~ poly(indus, 3), data = Boston)
+#lm15.d3 <- lm(crim ~ poly(chas, 3), data = Boston)
+lm15.d4 <- lm(crim ~ poly(nox, 3), data = Boston)
+lm15.d5 <- lm(crim ~ poly(rm, 3), data = Boston)
+lm15.d6 <- lm(crim ~ poly(age, 3), data = Boston)
+lm15.d7 <- lm(crim ~ poly(dis, 3), data = Boston)
+lm15.d8 <- lm(crim ~ poly(rad, 3), data = Boston)
+lm15.d9 <- lm(crim ~ poly(tax, 3), data = Boston)
+lm15.d10 <- lm(crim ~ poly(ptratio, 3), data = Boston)
+lm15.d11 <- lm(crim ~ poly(black, 3), data = Boston)
+lm15.d12 <- lm(crim ~ poly(lstat, 3), data = Boston)
+lm15.d13 <- lm(crim ~ poly(medv, 3), data = Boston)
+summary(lm15.d1)
+summary(lm15.d2)
+#summary(lm15.d3)
+summary(lm15.d4)
+summary(lm15.d5)
+summary(lm15.d6)
+summary(lm15.d7)
+summary(lm15.d8)
+summary(lm15.d9)
+summary(lm15.d10)
+summary(lm15.d11)
+summary(lm15.d12)
+summary(lm15.d13)
+```
+
+```{r, echo = F, results = "hide", message = F}
+col10 <- names(Boston)[-1]
+lm.test <- vector("list", length(col10))
+formulas <- paste0("crim ~ ", col10, " + I(", col10, "^2)", " + I(", col10, "^3)")
+formulas
+
+lm.poly <-  sapply(formulas, function(f) summary(lm(as.formula(f), data = Boston))$coefficients)
+lm.poly
+
+```
+
+```{r, echo = F, results = "hide"}
+# Very important difference between raw coding vs. orthogonal polynomial matrix: 
+# https://stackoverflow.com/questions/29999900/poly-in-lm-difference-between-raw-vs-orthogonal
+summary(lm(formula = medv ~ lstat + I(lstat^2) , data = Boston))$coefficients
+summary(lm(medv ~ poly(lstat, 2, raw = T), data = Boston))$coefficients
+#orthogonal matrix: the quadratic term only captures the effect not captured by the linear term, etc.
+summary(lm(medv ~ poly(lstat, 1 ), data = Boston))$coefficients
+summary(lm(medv ~ poly(lstat, 2 ), data = Boston))$coefficients
+summary(lm(medv ~ poly(lstat, 3 ), data = Boston))$coefficients
+
+```
+
+
+
+
+

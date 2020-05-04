@@ -1,0 +1,386 @@
+---
+title: "Stats 202 HW3"
+author: "Jenny Tian"
+date: "October 19, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r echo=FALSE, results = 'hide', message = FALSE}
+#install.packages("tinytex")
+#tinytex::install_tinytex()
+```
+
+Discussed homework with Dominic Waltz, John Massad and Yin Gao.
+
+```{r, warning = F, message = F}
+#install.packages("bookdown")
+#install.packages("ISLR")
+#install.packages("class")
+library("ISLR")
+library("MASS")
+library("bookdown")
+library("class")
+library("dplyr")
+library("tidyr")
+library("ggplot2")
+
+options("scipen"=100, "digits"=6)
+
+```
+
+
+## Problem 1: 4.7 Ex4 Curse of Dimensionality
+### (a) 
+
+
+
+```{r, echo=FALSE, warning=FALSE,results='hide'}
+f1 <- function(x){1.05-x}
+f2 <- function(x){x+0.05}
+f3 <- function(x){0.1}
+I1 <- integrate(f1, 0.95, 1)
+I2 <- integrate(f2, 0, 0.05)
+I3 <- integrate(Vectorize(f3), 0.05, 0.95)
+I1$value+I2$value+I3$value
+```
+
+## Problem 2: 4.7 Ex5 Compare LDA and QDA
+
+### (a) 
+
+When Bayes decision boundary is linear, I expect that  
+* QDA will perform better on the training set, because QDA is more flexible and can fit the error in the training set more closely.   
+* LDA will perform better on the test set, because QDA will induce larger variance but not decrease bias, since LDA already has a very small bias when the Bayes boundary is linear. 
+
+### (b) 
+When Bayes decision boundary is non-linear, I expect that  
+* QDA will perform better on the training set, because QDA is more flexible and fits a non-linear boundary, especially quadratic boundary, better than LDA.  
+* QDA will perform better on the test set, because LDA will only produce a linear boundary and thus have a big bias even though a smaller variance, whereas QDA will produce a quadratic boundary and has a much smaller bias. 
+
+
+### (c) 
+
+In general, as sample size n increases, I expect QDA to perform better, because QDA is more flexible than LDA so it generally has a larger variance and smaller bias than LDA. A larger sample size will reduce the variance, so the large variance of QDA won't be a big concern. 
+
+### (d) 
+
+False. We will probably achieve a superior training error rate using QDA, since it's flexible enough to model a linear deicision boundary. However,on the test data set, LDA will achieve a low bias as well as low variance, since the Bayes boundary is linear, whereas the more flexible QDA will achieve a much large variance but not necessarily a smaller bias than LDA, since LDA is already flexible enough to model a linear boundary. Since the test expected MSE includes variance and bias, I would expect QDA to have a higher test expected MSE. 
+
+## Problem 3: 4.7 Ex6 Logistic Regression
+### (a) 
+Based on the coefficients, the logistic regression estimation at X1 = 40 and X2 = 3.5 is  
+$P(Y=1|X) = \frac{e^{\beta_0+\beta_1x_1+\beta_2x_2}}{1+e^{\beta_0+\beta_1x_1+\beta_2x_2}}= 0.3775407$
+
+```{r}
+exp(-6+0.05*40+3.5)/(1+exp(-6+0.05*40+3.5))
+```
+### (b) 
+When $X_2=3.5$ and $P(Y=1|X)=0.5$,  
+
+\begin{math}
+\begin{aligned}
+log(\frac{P(Y=1|X)}{P(Y=0|X)}) &=   \beta_0+\beta_1x_1+\beta_2x_2 \\
+log(\frac{0.5}{0.5}) &= -6+0.05x_1+3.5\\
+ 0 &= -2.5 + 0.05x \\
+x_1 &= 50
+\end{aligned}
+\end{math}
+
+
+Thus, the student in part (a) needs to study 50 hours. 
+
+
+## Problem 4: 4.7 Ex8 training vs. test error rates
+Logistic regression is preferred for classification of new observation, because it has a lower test error rate. Note that 1-nearest neighbor classification method has a 0 training error rate, because it assigns to each data point in the training set the class of the training observation closest to it, which is the class of itself. Since 1-nearest neighbor has an average error rate of 18% averaged over equally-sized test and training data sets and its training error rate is 0%, its test error rate is 36%, which is larger than the test error rate of logistic regression (30%). Since only the test error rate matters when evaluating the accuracy of the classifier on a new observation, logistic regression is preferred. 
+
+## Problem 5g: 4.7 Ex10 Weekly data
+
+###(a)
+
+The Weekly dataset has 9 variables and 1089 observations. The five Lag variables have close to zero correlation with Volume, which indicates that there appears to be little association between today's returns and previous weeks' returns. Year and Volume are the only pair of variables with strong correlation (corr = 0.84). Volume is increasing over time from 1990-2010. 
+```{r}
+summary(Weekly)
+dim(Weekly)
+pairs(Weekly)
+cor(Weekly[,-9])
+plot( Weekly$Year, Weekly$Volume)
+```
+
+###(b)Logistic Regression 
+
+From the logistic regression, the only statistically significant coefficient is the one of Lag2, indicating that one unit increase in the returns from two weeks ago is associated with 0.0584 increase in log odds of today's market going up. 
+
+```{r}
+glm.10b <- glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume, data = Weekly, family = binomial)
+summary(glm.10b)
+
+glm.fit <- glm(Direction~.-Year-Today,data=Weekly,family="binomial")
+summary(glm.fit)
+```
+
+
+###(c) Confusion Matrix 
+
+I assign any point with P(Up|X)>0.5 to the direction "Up", following the rule of the Bayes classifier. In the confusion table, I see that there are 430 false positives and 48 false negatives. So the overall error rate is $(430+48)/1089 = 43.89\% $ and the overall fraction of correct predictions is $56.11\%$. The false positive rate is $430/(430+54) = 88.84\% $ and false negative rate is $48/(48+557) = 7.9\%$. The overall error rate is slighly less than 50%, suggesting the logistic regression predicts slightly better than a random classifier. Even though the false negative rate is very low, the false positive rate is very large and a source of concern. 
+
+```{r}
+pred.10b <- predict(glm.10b,type = "response")
+pred.dir.10b <- rep("Down", dim(Weekly)[1])
+pred.dir.10b[pred.10b>0.5] = "Up"
+table(pred.dir.10b, Weekly$Direction)
+mean(pred.dir.10b==Weekly$Direction)
+(430+48)/1089
+430/(430+54)
+48/(48+557)
+```
+
+###(d) Logistic Regression on training data from 1990-2008 and only on Lag2. 
+
+Using 1990-2008 as the training data and only Lag2 as the predictor, the overall fraction of correct predictions on the test data (2009-2010) is 62.5%, which is much higher than the previous overall fraction of correct predictions on the training data, 56.11%. This means that removing the insignificant predictors and keeping only Lag2 as the predictor improves the logistic regression, since the other predictors that have no reltaionship with the response will only cause an increase in variance without a decrease in bias.
+
+```{r}
+train.set <- Weekly[Weekly$Year <= 2008, ]
+test.set <- Weekly[Weekly$Year >= 2009, ]
+dim(test.set)
+
+#fit the logistic regression on the training data 
+glm.10d <- glm(Direction~Lag2, data = train.set, family = binomial)
+summary(glm.10d)
+
+#predict probabilities of stock market going up on the test data 
+pred.10d <- predict(glm.10d, test.set, type = "response") 
+
+#confusion matrix of predictions vs. test responses 
+pred.dir.10d <- rep("Down", dim(test.set)[1])
+pred.dir.10d[pred.10d>0.5] <- "Up"
+table(pred.dir.10d, test.set$Direction, dnn = c("Predicted", "Actual"))
+mean(pred.dir.10d ==test.set$Direction)
+```
+
+###(e) LDA repeating (d)
+
+Using 1990-2008 as the training data and only Lag2 as the predictor, the overall fraction of correct predictions using LDA on the test data (2009-2010) is 62.5%, exactly the same result as using logistic regression in part (d). 
+
+```{r}
+
+#fit LDA on the training data 
+lda.10e <- lda(Direction~Lag2, data = train.set)
+lda.10e
+
+#predict probabilities of stock market going up on the test data 
+pred.10e <- predict(lda.10e, test.set) 
+pred.dir.10e <- pred.10e$class
+
+#confusion matrix of predictions vs. test responses 
+table(pred.dir.10e, test.set$Direction, dnn = c("Predicted", "Actual"))
+mean(pred.dir.10e ==test.set$Direction)
+```
+
+
+###(f) QDA repeating (d)
+Using 1990-2008 as the training data and only Lag2 as the predictor, the overall fraction of correct predictions using QDA on the test data (2009-2010) is 58.65%, indicating that QDA is less accurate than LDA or logistic regression. Note that all the errors are false positives (false positive rate is 100% and false negative rate is 0%). 
+
+```{r}
+
+#fit QDA on the training data 
+qda.10f <- qda(Direction~Lag2, data = train.set)
+qda.10f
+
+#predict probabilities of stock market going up on the test data 
+pred.10f <- predict(qda.10f, test.set) 
+pred.dir.10f <- pred.10f$class
+
+#confusion matrix of predictions vs. test responses 
+table(pred.dir.10f, test.set$Direction, dnn = c("Predicted", "Actual"))
+mean(pred.dir.10f ==test.set$Direction)
+
+```
+
+###(g) 1-nearest neighbor repeating (d)
+Using 1990-2008 as the training data and only Lag2 as the predictor, the overall fraction of correct predictions using 1-nearest neighbor on the test data (2009-2010) is 50%, the same as a random classifier.  This shows that 1-nearest-neighbor is too flexible and has the worst prediction accuracy. 
+```{r}
+train.set.g <- data.frame(train.set[, "Lag2"])
+test.set.g <- data.frame(test.set[,"Lag2"])
+train.direction <- train.set$Direction
+set.seed(1)
+pred.10g <- knn(train.set.g, test.set.g, train.direction, k=1) #train.set and test.set must be dataframe or matrix
+table(pred.10g, test.set$Direction,dnn = c("Predicted", "Actual"))
+mean(pred.10g== test.set$Direction)
+
+```
+
+
+
+
+###(h)
+
+LDA and logistic regression provide the best results on this data, as 62.5% of their predicted results are correct. QDA is slightly worse, with the overall fraction of correct predictions being 58.65%. 1-nearest-neighbor has the worst prediction performance and it no better than a random classifier. 
+
+###(i) Experimenting with different model specifications 
+
+**For Logistic regression, LDA and QDA:** After experimenting with different predictors, transformations and interactions, I find that using Lag2 and Lag2^2 as predictors in LDA and logistic regression yield the same overall test error rate as using only Lag2 as the predictor in LDA and Logistic regression, while the other more complicated transformations do not yield a more accurate prediction. For simplicity, it's still preferable to use only Lag2 as the predictor. 
+
+```{r}
+#Logistic regression using both Lag2+Lag2^2
+glm.10i.logit <- glm(Direction~Lag2+Lag2^2, data = train.set, family = binomial)
+pred.10i.logit <- predict(glm.10i.logit, test.set, type = "response") 
+pred.dir.10i.logit <- rep("Down", dim(test.set)[1])
+pred.dir.10i.logit[pred.10i.logit>0.5] <- "Up"
+table(pred.dir.10i.logit, test.set$Direction)
+mean(pred.dir.10i.logit ==test.set$Direction)
+ 
+ 
+#LDA using both Lag2+Lag2^2
+lda.10i.lda <- lda(Direction~Lag2+Lag2^2, data = train.set)
+pred.10i.lda <- predict(lda.10i.lda, test.set) 
+pred.dir.10i.lda <- pred.10i.lda$class
+table(pred.dir.10i.lda, test.set$Direction)
+mean(pred.dir.10i.lda ==test.set$Direction)
+```
+
+
+**For KNN:** KNN with K=4 provides the best results on the test data among all the KNN methods. Its overall fraction of correct predictions is 61.5%, higher than that of QDA and just slightly lower than that of LDA and logistic regression. Note that even though KNN (K=4) has a slighly higher overall error rate than LDA or logistic regression, it has a much lower false positive rate $23/43 = 53.4884\%$ than the false positive rate of LDA or logistic regression $34/(34+9)=79.0698\%$. 
+
+```{r}
+set.seed(1)
+pred.10i.knn <- knn(train.set.g, test.set.g, train.direction, k=4) #train.set and test.set must be dataframe or matrix
+table(pred.10i.knn, test.set$Direction)
+mean(pred.10i.knn== test.set$Direction)
+23/43
+17/61
+```
+
+**Among all of the above methods:** The method that has the best results on the test dataset is either LDA or logistic regression with only Lag2 as the predictor. The confusion matrix is below. 
+
+```{r}
+table(pred.dir.10e, test.set$Direction)
+```
+
+Note that if our investment method is to invest when the prediction is "Up" and not invest when the prediction is "Down", then we only care about the fraction of correct predictions when the method predicts "Up". When the predictions are "Up", KNN (K=4) has a $44/(44+23) = 65.67\%$ accuracy rate, whereas LDA or logistic regression have a $56/(34+56) = 62.22\% $ accuracy rate. Thus, in this aspect, KNN (K=4) is preferred method.  
+
+
+## Problem 6: 4.7 Ex11 Auto data
+
+###(a) Create binary variable mgp01 
+
+```{r}
+data(Auto)
+dim(Auto)
+Auto$mpg01  <- 0
+Auto$mpg01[Auto$mpg>median(Auto$mpg)] <- 1 
+summary(Auto)
+```
+
+
+###(b) Data exploration using scatterplots and boxplots 
+
+mpg01 seems to be strongly negatively correlated with cylinders, displacement, horsepower, weight. mpg01 seems moderately positively correlated with year, and origin. mpg01 is weakly correlated with acceleration so I will not include it as predictors. 
+
+
+```{r}
+pairs(Auto)
+cor(Auto[,-9])
+
+#box plots of all quantitative variables by mgp01
+Auto %>%
+  select(mpg01, displacement:origin) %>%
+  gather(Measure, Value, -mpg01) %>%
+  ggplot(aes(x = factor(mpg01)
+             , y = Value)) +
+  geom_boxplot() +
+  facet_wrap(~Measure
+             , scales = "free_y")
+```
+
+###(c) Split into training and test data
+
+I will randomly split Auto data in half into training and test sets, using a validation set approach. 
+
+
+```{r}
+#Auto$mpg01 <- as.factor(Auto$mpg01)
+Auto$origin<- as.factor(Auto$origin)
+# sampling splitting 
+set.seed(1)
+splitting.rule <- sample(392, 196)
+train.Auto <- Auto[splitting.rule, -1]
+test.Auto <- Auto[-splitting.rule, -1]
+```
+
+### (d) LDA on the training set 
+
+
+According to confusion matrix, the overall test error rate is 8.67%. 
+```{r}
+lda.11d <- lda(mpg01~ horsepower+weight+year+origin+cylinders+displacement ,data= train.Auto)
+pred.11d <- predict(lda.11d, test.Auto) 
+pred.dir.11d <- pred.11d$class
+#confusion matrix of predictions vs. test responses 
+table(pred.dir.11d, test.Auto$mpg01, dnn = c("Predicted", "Actual"))
+mean(pred.dir.11d != test.Auto$mpg01 )
+
+```
+
+
+### (e) QDA on the training set 
+
+According to confusion matrix, the overall test error rate is 8.67%, same as that of LDA.  
+```{r}
+qda.11e <- qda(mpg01~ horsepower+weight+year+origin+cylinders+displacement ,data= train.Auto)
+pred.11e <- predict(qda.11e, test.Auto) 
+pred.dir.11e <- pred.11e$class
+#confusion matrix of predictions vs. test responses 
+table(pred.dir.11e, test.Auto$mpg01, dnn = c("Predicted", "Actual"))
+mean(pred.dir.11e != test.Auto$mpg01 )
+
+```
+
+
+### (f) Logistic regression  on the training set 
+
+According to confusion matrix, the overall test error rate is 8.16%, lower than those of LDA and QDA. 
+```{r}
+
+glm.11f <- glm(mpg01~ horsepower+weight+year+origin+cylinders+displacement ,data= train.Auto, family=binomial)
+summary(glm.11f)
+pred.11f <- predict(glm.11f, test.Auto ,type = "response") 
+
+#confusion matrix of predictions vs. test responses 
+pred.dir.11f <- rep(0, dim(test.Auto)[1])
+pred.dir.11f[pred.11f>0.5] <- 1
+table(pred.dir.11f, test.Auto$mpg01, dnn = c("Predicted", "Actual"))
+mean(pred.dir.11f != test.Auto$mpg01 )
+
+```
+
+### (g) KNN with different K on the training set 
+
+I performed KNN with K from 1 to 50 and plotted the associated error rates by K. The lowest error rate of 8.67% occurs when K = 6. This error rate is the same as that of LDA and QDA on this test data. 
+```{r}
+train.Auto.11g <- train.Auto[,c(-5,-8,-9)]
+test.Auto.11g <- test.Auto[,c(-5,-8,-9)]
+train.direction.11g <- train.Auto[, "mpg01"]
+```
+
+```{r}
+set.seed(2)
+trial_n  <- numeric(50)
+error_rate <- numeric(50)
+
+for (i in 1:50){
+predict <- knn(train.Auto.11g, test.Auto.11g, train.direction.11g, k=i )
+#table(pred.11g.k1, test.Auto$mpg01, dnn = c("Predicted", "Actual"))
+error_rate[i] <- mean(predict != test.Auto$mpg01 )
+trial_n[i] <- i
+}
+
+plot(trial_n,error_rate, type = "l", ylab = "Total Error Rate", xlab = "K", 
+     main = "Total Error Rate using KNN with varying K")
+
+test <- data.frame(cbind(trial_n, error_rate))
+test[test$error_rate == min(test$error_rate),]
+```
+
